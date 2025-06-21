@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성과 평가 시스템</title>
+    <style>
+        /* ===== 전체 레이아웃 스타일 ===== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* ===== 로딩 스피너 스타일 ===== */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* ===== 헤더 스타일 ===== */
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        /* ===== 역할 선택 버튼 스타일 ===== */
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .role-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #e0e0e0;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .role-btn.active {
+            background: #3498db;
+            color: white;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+        }
+        
+        .role-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* ===== 메인 콘텐츠 영역 스타일 ===== */
+        .content-area {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+        
+        .role-content {
+            display: none;
+        }
+        
+        .role-content.active {
+            display: block;
+        }
+        
+        /* ===== 팀 필터 섹션 ===== */
+        .team-filter-section {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .team-filter-section label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .team-filter-section select {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        /* ===== 선택 박스 스타일 ===== */
+        .selector-group {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .selector-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .selector-item label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .selector-item select, .selector-item input {
+            width: 250px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        /* ===== 평가 정보 박스 ===== */
+        .eval-info-box {
+            background: #f0f8ff;
+            border: 2px solid #4169e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .eval-info-box h3 {
+            color: #4169e1;
+            margin-bottom: 15px;
+        }
+        
+        .eval-info-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .eval-info-label {
+            font-weight: bold;
+            color: #555;
+            width: 100px;
+        }
+        
+        .eval-info-value {
+            color: #333;
+        }
+        
+        /* ===== 관리 섹션 스타일 ===== */
+        .management-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .management-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        
+        .management-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .management-card h4 {
+            margin-bottom: 15px;
+            color: #34495e;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        /* ===== 채널 평가 섹션 ===== */
+        .channel-evaluation-section {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .channel-checkbox-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .channel-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        
+        .channel-checkbox-item:hover {
+            background: #e3f2fd;
+        }
+        
+        .channel-checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        /* ===== 테이블 스타일 ===== */
+        .evaluation-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .evaluation-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+        
+        .evaluation-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .evaluation-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* ===== 읽기 전용 모드 스타일 ===== */
+        .readonly-mode input:disabled,
+        .readonly-mode textarea:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+        
+        .readonly-mode .detail-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* ===== 멤버 선택 체크박스 스타일 ===== */
+        .member-checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+        
+        .member-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            background: white;
+        }
+        
+        .member-checkbox-item:hover {
+            background: #e3f2fd;
+        }
+        
+        .member-checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .member-checkbox-item label {
+            flex: 1;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .member-team-badge {
+            background: #e0e0e0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        /* ===== 입력 필드 스타일 ===== */
+        input[type="number"], input[type="text"], input[type="month"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input[type="number"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        /* ===== 상세정보 버튼 스타일 ===== */
+        .detail-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+        
+        .detail-btn:hover {
+            background: #2980b9;
+        }
+        
+        /* ===== 상세정보 패널 스타일 ===== */
+        .detail-panel {
+            display: none;
+            background: #f8f9fa;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .detail-panel.show {
+            display: block;
+        }
+        
+        .detail-panel textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            margin-top: 10px;
+        }
+        
+        /* ===== 성과 리스트 ===== */
+        .achievements-list {
+            margin-top: 10px;
+        }
+        
+        .achievement-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .achievement-item input {
+            flex: 1;
+        }
+        
+        /* ===== 진행률 바 스타일 ===== */
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #ecf0f1;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* ===== 요약 정보 스타일 ===== */
+        .summary-box {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .summary-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .summary-value {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        
+        /* ===== 버튼 스타일 ===== */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .submit-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 30px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .submit-btn:hover {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        /* ===== 리스트 스타일 ===== */
+        .item-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        
+        .list-item:hover {
+            background: #f8f9fa;
+        }
+        
+        /* ===== 알림 메시지 스타일 ===== */
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        /* ===== 금액 표시 스타일 ===== */
+        .amount {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        
+        .percentage {
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        /* ===== 채널 정보 카드 ===== */
+        .channel-info-card {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .channel-info-card h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        
+        .channel-members-count {
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 로딩 스피너 -->
+        <div class="loading" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; text-align: center;">처리중...</p>
+        </div>
+        
+        <!-- 헤더 영역 -->
+        <div class="header">
+            <h1>성과 평가 시스템</h1>
+            <p>스튜디오별 채널 성과를 체계적으로 평가하고 관리합니다</p>
+        </div>
+        
+        <!-- 역할 선택 버튼 -->
+        <div class="role-selector">
+            <button class="role-btn" onclick="switchRole('management')">팀원/채널 관리</button>
+            <button class="role-btn" onclick="switchRole('teamlead')">1차 평가 (팀장)</button>
+            <button class="role-btn" onclick="switchRole('manager')">2차 평가 (관리자)</button>
+            <button class="role-btn" onclick="switchRole('executive')">최종 평가 (최종관리자)</button>
+        </div>
+        
+        <!-- 알림 메시지 영역 -->
+        <div id="alertBox" class="alert"></div>
+        
+        <!-- 메인 콘텐츠 영역 -->
+        <div class="content-area">
+            <!-- 관리 화면 -->
+            <div id="managementContent" class="role-content">
+                <h2>팀원 및 채널 관리</h2>
+                
+                <!-- 팀 필터 -->
+                <div class="team-filter-section">
+                    <label>팀 필터:</label>
+                    <select id="managementTeamFilter" onchange="filterManagementByTeam()">
+                        <option value="">전체 팀</option>
+                        <option value="team1">스튜디오 1팀</option>
+                        <option value="team2">스튜디오 2팀</option>
+                        <option value="team3">스튜디오 3팀</option>
+                        <option value="team4">스튜디오 4팀</option>
+                        <option value="team5">스튜디오 5팀</option>
+                    </select>
+                </div>
+                
+                <div class="management-grid">
+                    <!-- 팀원 관리 카드 -->
+                    <div class="management-card">
+                        <h4>팀원 관리</h4>
+                        
+                        <!-- 팀원 추가 -->
+                        <div class="form-group">
+                            <label>새 팀원 추가</label>
+                            <input type="text" id="newMemberName" placeholder="팀원 이름">
+                        </div>
+                        <div class="form-group">
+                            <select id="newMemberTeam">
+                                <option value="">팀 선택</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="addNewMember()">팀원 추가</button>
+                        
+                        <!-- 팀원 목록 -->
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label>팀원 목록</label>
+                            <div id="memberList" class="item-list"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 채널 관리 카드 -->
+                    <div class="management-card">
+                        <h4>채널 관리</h4>
+                        
+                        <!-- 채널 추가 -->
+                        <div class="form-group">
+                            <label>새 채널 추가</label>
+                            <input type="text" id="newChannelName" placeholder="채널명">
+                        </div>
+                        <div class="form-group">
+                            <select id="newChannelTeam">
+                                <option value="">팀 선택</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="addNewChannel()">채널 추가</button>
+                        
+                        <!-- 채널 목록 -->
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label>채널 목록</label>
+                            <div id="channelList" class="item-list"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 채널별 팀원 할당 -->
+                <div class="management-section" style="margin-top: 30px;">
+                    <h3>채널별 팀원 할당</h3>
+                    
+                    <div class="selector-group">
+                        <div class="selector-item">
+                            <label>채널 선택:</label>
+                            <select id="channelForMemberAssignment" onchange="loadChannelMembersForAssignment()">
+                                <option value="">채널을 선택하세요</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="channelMemberAssignmentArea" style="display: none;">
+                        <div style="margin-bottom: 15px;">
+                            <label>팀 필터:</label>
+                            <select id="memberAssignmentTeamFilter" onchange="filterAssignmentMembers()">
+                                <option value="">전체 팀원</option>
+                                <option value="team1">스튜디오 1팀</option>
+                                <option value="team2">스튜디오 2팀</option>
+                                <option value="team3">스튜디오 3팀</option>
+                                <option value="team4">스튜디오 4팀</option>
+                                <option value="team5">스튜디오 5팀</option>
+                            </select>
+                        </div>
+                        <h4>팀원 선택</h4>
+                        <div id="memberCheckboxList" class="member-checkbox-list"></div>
+                        <button class="btn btn-success" style="margin-top: 15px;" onclick="saveChannelMembers()">선택한 팀원 저장</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 1차 평가 (팀장) 화면 -->
+            <div id="teamleadContent" class="role-content">
+                <h2>1차 평가 - 채널별 성과 입력</h2>
+                
+                <div class="selector-group">
+                    <div class="selector-item">
+                        <label>평가월:</label>
+                        <input type="month" id="evalMonth" onchange="checkExistingEvaluation()">
+                    </div>
+                    <div class="selector-item">
+                        <label>평가자 (팀장):</label>
+                        <select id="teamleadSelect" onchange="checkExistingEvaluation()">
+                            <option value="">팀장을 선택하세요</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="evaluationModeArea" style="display: none;">
+                    <!-- 기존 평가 정보 표시 영역 -->
+                    <div id="existingEvalInfo" class="eval-info-box" style="display: none;">
+                        <h3>기존 평가 정보</h3>
+                        <div class="eval-info-item">
+                            <span class="eval-info-label">최종 수정:</span>
+                            <span class="eval-info-value" id="lastModified"></span>
+                        </div>
+                        <div class="eval-info-item">
+                            <span class="eval-info-label">평가 채널:</span>
+                            <span class="eval-info-value" id="evaluatedChannelsList"></span>
+                        </div>
+                        <button class="btn btn-warning" onclick="enableEditMode()">평가 수정하기</button>
+                    </div>
+                    
+                    <!-- 신규/수정 평가 영역 -->
+                    <div id="evaluationEditArea" style="display: none;">
+                        <div class="selector-group">
+                            <div class="selector-item">
+                                <label>팀 선택:</label>
+                                <select id="evaluationTeamSelect" onchange="loadTeamChannels()">
+                                    <option value="">팀을 선택하세요</option>
+                                    <option value="team1">스튜디오 1팀</option>
+                                    <option value="team2">스튜디오 2팀</option>
+                                    <option value="team3">스튜디오 3팀</option>
+                                    <option value="team4">스튜디오 4팀</option>
+                                    <option value="team5">스튜디오 5팀</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="teamChannelsArea" style="display: none;">
+                            <h3>평가할 채널 선택</h3>
+                            <div id="channelCheckboxArea" class="channel-checkbox-area"></div>
+                            <button class="btn btn-primary" style="margin: 20px 0;" onclick="loadSelectedChannels()">선택한 채널 평가하기</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="channelEvaluationsArea"></div>
+                
+                <button class="submit-btn" id="submitFirstEvalBtn" style="display: none;" onclick="submitFirstEvaluation()">1차 평가 최종 제출</button>
+            </div>
+            
+            <!-- 2차 평가 (관리자) 화면 -->
+            <div id="managerContent" class="role-content">
+                <h2>2차 평가 - 평가 조정</h2>
+                
+                <div class="selector-group">
+                    <div class="selector-item">
+                        <label>평가월:</label>
+                        <input type="month" id="evalMonth2nd">
+                    </div>
+                    <button class="btn btn-primary" onclick="loadSecondEvaluation()">평가 데이터 불러오기</button>
+                </div>
+                
+                <div id="secondEvaluationArea"></div>
+                <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluation()">2차 평가 저장</button>
+            </div>
+            
+            <!-- 최종 평가 (최종관리자) 화면 -->
+            <div id="executiveContent" class="role-content">
+                <h2>최종 평가 - 성과금 책정</h2>
+                
+                <div class="selector-group">
+                    <div class="selector-item">
+                        <label>평가월:</label>
+                        <input type="month" id="evalMonthFinal">
+                    </div>
+                    <button class="btn btn-primary" onclick="loadFinalEvaluation()">평가 데이터 불러오기</button>
+                </div>
+                
+                <div id="finalEvaluationArea"></div>
+                <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluation()">이달의 평가 최종 확정</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ===== 전역 데이터 저장소 =====
+        let evaluationData = {
+            teams: {},
+            members: [],
+            channels: [],
+            teamleads: [],
+            firstEvaluation: {},
+            secondEvaluation: {},
+            finalEvaluation: {},
+            currentChannels: {},
+            currentChannelMembers: [],
+            existingEvaluations: {},
+            selectedChannels: [],
+            evaluationMode: 'new', // 'new', 'view', 'edit'
+            currentEvalMonth: '',
+            currentTeamleadId: '',
+            currentEvalInfo: null
+        };
+        
+        // ===== 초기 데이터 로드 =====
+        function loadInitialData() {
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    evaluationData.teams = data.teams;
+                    evaluationData.members = data.members;
+                    evaluationData.channels = data.channels;
+                    evaluationData.teamleads = data.teamleads;
+                    
+                    // 각종 선택 옵션 업데이트
+                    updateAllSelectors();
+                    
+                    // 현재 월 설정
+                    const currentMonth = new Date().toISOString().slice(0, 7);
+                    document.getElementById('evalMonth').value = currentMonth;
+                    document.getElementById('evalMonth2nd').value = currentMonth;
+                    document.getElementById('evalMonthFinal').value = currentMonth;
+                    
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('데이터 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getInitialData();
+        }
+        
+        // ===== 선택 옵션 업데이트 =====
+        function updateAllSelectors() {
+            // 팀 선택 옵션 업데이트
+            const teamSelects = ['newMemberTeam', 'newChannelTeam'];
+            teamSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">팀 선택</option>';
+                    for (const teamId in evaluationData.teams) {
+                        const option = document.createElement('option');
+                        option.value = teamId;
+                        option.textContent = evaluationData.teams[teamId].name;
+                        select.appendChild(option);
+                    }
+                }
+            });
+            
+            // 팀장 선택 옵션 업데이트
+            const teamleadSelect = document.getElementById('teamleadSelect');
+            if (teamleadSelect) {
+                teamleadSelect.innerHTML = '<option value="">팀장을 선택하세요</option>';
+                evaluationData.teamleads.forEach(teamlead => {
+                    const option = document.createElement('option');
+                    option.value = teamlead.id;
+                    option.textContent = `${teamlead.name} (${evaluationData.teams[teamlead.teamId].name})`;
+                    teamleadSelect.appendChild(option);
+                });
+            }
+            
+            // 채널 선택 옵션 업데이트
+            updateChannelSelectors();
+            
+            // 관리 화면 리스트 업데이트
+            updateMemberList();
+            updateChannelList();
+        }
+        
+        function updateChannelSelectors() {
+            const select = document.getElementById('channelForMemberAssignment');
+            if (select) {
+                select.innerHTML = '<option value="">채널을 선택하세요</option>';
+                evaluationData.channels.forEach(channel => {
+                    const option = document.createElement('option');
+                    option.value = channel.id;
+                    option.textContent = `${channel.name} (${evaluationData.teams[channel.teamId].name})`;
+                    select.appendChild(option);
+                });
+            }
+        }
+        
+        // ===== 로딩 표시 =====
+        function showLoading(show) {
+            const loading = document.getElementById('loadingSpinner');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // ===== 역할 전환 함수 =====
+        function switchRole(role) {
+            // 모든 역할 버튼과 콘텐츠 비활성화
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
+            
+            // 선택된 역할 활성화
+            event.target.classList.add('active');
+            
+            // 해당 역할의 콘텐츠 표시
+            if (role === 'management') {
+                document.getElementById('managementContent').classList.add('active');
+            } else if (role === 'teamlead') {
+                document.getElementById('teamleadContent').classList.add('active');
+            } else if (role === 'manager') {
+                document.getElementById('managerContent').classList.add('active');
+            } else if (role === 'executive') {
+                document.getElementById('executiveContent').classList.add('active');
+            }
+        }
+        
+        // ===== 관리 기능 함수들 =====
+        function filterManagementByTeam() {
+            const selectedTeam = document.getElementById('managementTeamFilter').value;
+            updateMemberList(selectedTeam);
+            updateChannelList(selectedTeam);
+        }
+        
+        function updateMemberList(teamFilter = '') {
+            const listDiv = document.getElementById('memberList');
+            listDiv.innerHTML = '';
+            
+            const filteredMembers = teamFilter 
+                ? evaluationData.members.filter(m => m.teamId === teamFilter)
+                : evaluationData.members;
+            
+            filteredMembers.forEach(member => {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = `
+                    <span>${member.name} (${evaluationData.teams[member.teamId].name})</span>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">삭제</button>
+                `;
+                listDiv.appendChild(item);
+            });
+        }
+        
+        function updateChannelList(teamFilter = '') {
+            const listDiv = document.getElementById('channelList');
+            listDiv.innerHTML = '';
+            
+            const filteredChannels = teamFilter 
+                ? evaluationData.channels.filter(c => c.teamId === teamFilter)
+                : evaluationData.channels;
+            
+            filteredChannels.forEach(channel => {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = `
+                    <span>${channel.name} (${evaluationData.teams[channel.teamId].name})</span>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteChannel('${channel.id}')">삭제</button>
+                `;
+                listDiv.appendChild(item);
+            });
+        }
+        
+        function addNewMember() {
+            const name = document.getElementById('newMemberName').value.trim();
+            const teamId = document.getElementById('newMemberTeam').value;
+            
+            if (!name || !teamId) {
+                showAlert('팀원 이름과 팀을 모두 입력해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        document.getElementById('newMemberName').value = '';
+                        document.getElementById('newMemberTeam').value = '';
+                        loadInitialData();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('팀원 추가 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .addMember({ name: name, teamId: teamId });
+        }
+        
+        function deleteMember(memberId) {
+            if (!confirm('정말로 이 팀원을 삭제하시겠습니까?')) return;
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        loadInitialData();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('팀원 삭제 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .deleteMember(memberId);
+        }
+        
+        function addNewChannel() {
+            const name = document.getElementById('newChannelName').value.trim();
+            const teamId = document.getElementById('newChannelTeam').value;
+            
+            if (!name || !teamId) {
+                showAlert('채널명과 팀을 모두 입력해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        document.getElementById('newChannelName').value = '';
+                        document.getElementById('newChannelTeam').value = '';
+                        loadInitialData();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('채널 추가 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .addChannel({ name: name, teamId: teamId });
+        }
+        
+        function deleteChannel(channelId) {
+            if (!confirm('정말로 이 채널을 삭제하시겠습니까?')) return;
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        loadInitialData();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('채널 삭제 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .deleteChannel(channelId);
+        }
+        
+        function loadChannelMembersForAssignment() {
+            const channelId = document.getElementById('channelForMemberAssignment').value;
+            const assignmentArea = document.getElementById('channelMemberAssignmentArea');
+            
+            if (!channelId) {
+                assignmentArea.style.display = 'none';
+                return;
+            }
+            
+            assignmentArea.style.display = 'block';
+            showLoading(true);
+            
+            google.script.run
+                .withSuccessHandler(function(channelMembers) {
+                    const channelMemberIds = channelMembers.map(m => m.id);
+                    evaluationData.currentChannelMembers = channelMemberIds;
+                    filterAssignmentMembers();
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('채널 멤버 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getChannelMembersData(channelId);
+        }
+        
+        function filterAssignmentMembers() {
+            const teamFilter = document.getElementById('memberAssignmentTeamFilter').value;
+            const checkboxList = document.getElementById('memberCheckboxList');
+            checkboxList.innerHTML = '';
+            
+            const filteredMembers = teamFilter 
+                ? evaluationData.members.filter(m => m.teamId === teamFilter)
+                : evaluationData.members;
+            
+            filteredMembers.forEach(member => {
+                const item = document.createElement('div');
+                item.className = 'member-checkbox-item';
+                
+                const isChecked = evaluationData.currentChannelMembers.includes(member.id);
+                
+                item.innerHTML = `
+                    <input type="checkbox" id="member_cb_${member.id}" value="${member.id}" ${isChecked ? 'checked' : ''}>
+                    <label for="member_cb_${member.id}">
+                        <span>${member.name}</span>
+                        <span class="member-team-badge">${evaluationData.teams[member.teamId].name}</span>
+                    </label>
+                `;
+                
+                checkboxList.appendChild(item);
+            });
+        }
+        
+        function saveChannelMembers() {
+            const channelId = document.getElementById('channelForMemberAssignment').value;
+            if (!channelId) {
+                showAlert('채널을 선택해주세요.', 'error');
+                return;
+            }
+            
+            const selectedMemberIds = [];
+            document.querySelectorAll('#memberCheckboxList input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedMemberIds.push(checkbox.value);
+            });
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('저장 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .updateChannelMembers(channelId, selectedMemberIds);
+        }
+        
+        // ===== 1차 평가 관련 함수 =====
+        function checkExistingEvaluation() {
+            const evalMonth = document.getElementById('evalMonth').value;
+            const teamleadId = document.getElementById('teamleadSelect').value;
+            
+            if (!evalMonth || !teamleadId) {
+                document.getElementById('evaluationModeArea').style.display = 'none';
+                return;
+            }
+            
+            evaluationData.currentEvalMonth = evalMonth;
+            evaluationData.currentTeamleadId = teamleadId;
+            
+            showLoading(true);
+            
+            // 평가 정보 확인
+            google.script.run
+                .withSuccessHandler(function(evalInfo) {
+                    if (evalInfo) {
+                        // 기존 평가 데이터 로드
+                        google.script.run
+                            .withSuccessHandler(function(result) {
+                                evaluationData.currentEvalInfo = evalInfo;
+                                evaluationData.existingEvaluations = result.evaluations;
+                                evaluationData.selectedChannels = result.evaluatedChannels;
+                                
+                                displayExistingEvaluation(evalInfo, result.evaluatedChannels);
+                                showLoading(false);
+                            })
+                            .withFailureHandler(function(error) {
+                                showAlert('평가 데이터 로드 실패: ' + error, 'error');
+                                showLoading(false);
+                            })
+                            .getFirstEvaluationByTeamlead(evalMonth, teamleadId);
+                    } else {
+                        // 신규 평가
+                        evaluationData.evaluationMode = 'new';
+                        displayNewEvaluation();
+                        showLoading(false);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('평가 정보 확인 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getEvaluationInfo(evalMonth, teamleadId);
+        }
+        
+        function displayExistingEvaluation(evalInfo, evaluatedChannels) {
+            evaluationData.evaluationMode = 'view';
+            
+            document.getElementById('evaluationModeArea').style.display = 'block';
+            document.getElementById('existingEvalInfo').style.display = 'block';
+            document.getElementById('evaluationEditArea').style.display = 'none';
+            document.getElementById('submitFirstEvalBtn').style.display = 'none';
+            
+            // 평가 정보 표시
+            document.getElementById('lastModified').textContent = evalInfo.lastModified;
+            
+            // 평가된 채널 목록
+            const channelNames = evaluatedChannels.map(chId => {
+                const channel = evaluationData.channels.find(c => c.id === chId);
+                return channel ? channel.name : chId;
+            });
+            document.getElementById('evaluatedChannelsList').textContent = channelNames.join(', ');
+            
+            // 기존 평가 내용 표시
+            displayEvaluationReadOnly();
+        }
+        
+        function displayNewEvaluation() {
+            evaluationData.evaluationMode = 'new';
+            
+            document.getElementById('evaluationModeArea').style.display = 'block';
+            document.getElementById('existingEvalInfo').style.display = 'none';
+            document.getElementById('evaluationEditArea').style.display = 'block';
+            document.getElementById('submitFirstEvalBtn').style.display = 'block';
+            
+            // 초기화
+            document.getElementById('channelEvaluationsArea').innerHTML = '';
+            evaluationData.selectedChannels = [];
+            evaluationData.currentChannels = {};
+        }
+        
+        function displayEvaluationReadOnly() {
+            const evaluationsArea = document.getElementById('channelEvaluationsArea');
+            evaluationsArea.innerHTML = '';
+            
+            for (const channelId in evaluationData.existingEvaluations) {
+                const channelEval = evaluationData.existingEvaluations[channelId];
+                const html = displayChannelEvaluationReadOnly(channelId, channelEval);
+                evaluationsArea.innerHTML += html;
+            }
+        }
+        
+        function displayChannelEvaluationReadOnly(channelId, channelEval) {
+            let html = `
+                <div class="channel-evaluation-section readonly-mode">
+                    <div class="channel-info-card">
+                        <h4>${channelEval.channelName}</h4>
+                        <p class="channel-members-count">팀원 수: ${channelEval.members.length}명</p>
+                    </div>
+                    
+                    <table class="evaluation-table">
+                        <thead>
+                            <tr>
+                                <th>팀원명</th>
+                                <th>소속팀</th>
+                                <th>투입 MM</th>
+                                <th>1차 기여도(%)</th>
+                                <th>핵심성과</th>
+                                <th>1차 코멘트</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            channelEval.members.forEach(member => {
+                const achievements = member.achievement ? member.achievement.split('|').join(', ') : '';
+                html += `
+                    <tr>
+                        <td>${member.name}</td>
+                        <td>${member.teamName}</td>
+                        <td>${member.mm}</td>
+                        <td class="percentage">${member.contribution1}%</td>
+                        <td>${achievements}</td>
+                        <td>${member.comment1 || ''}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            return html;
+        }
+        
+        function enableEditMode() {
+            evaluationData.evaluationMode = 'edit';
+            
+            document.getElementById('existingEvalInfo').style.display = 'none';
+            document.getElementById('evaluationEditArea').style.display = 'block';
+            document.getElementById('submitFirstEvalBtn').style.display = 'block';
+            
+            // 기존 평가 채널들을 다시 로드
+            const evaluationsArea = document.getElementById('channelEvaluationsArea');
+            evaluationsArea.innerHTML = '';
+            
+            evaluationData.currentChannels = {};
+            
+            // 기존 평가된 채널들을 편집 가능한 형태로 다시 표시
+            for (const channelId in evaluationData.existingEvaluations) {
+                const channelEval = evaluationData.existingEvaluations[channelId];
+                evaluationData.currentChannels[channelId] = channelEval.members;
+                
+                const html = displayChannelEvaluation(channelId, channelEval.members, channelEval);
+                evaluationsArea.innerHTML += html;
+            }
+        }
+        
+        function loadTeamChannels() {
+            const selectedTeam = document.getElementById('evaluationTeamSelect').value;
+            const channelsArea = document.getElementById('teamChannelsArea');
+            const checkboxArea = document.getElementById('channelCheckboxArea');
+            
+            if (!selectedTeam) {
+                channelsArea.style.display = 'none';
+                return;
+            }
+            
+            channelsArea.style.display = 'block';
+            checkboxArea.innerHTML = '';
+            
+            const teamChannels = evaluationData.channels.filter(c => c.teamId === selectedTeam);
+            
+            teamChannels.forEach(channel => {
+                const isChecked = evaluationData.selectedChannels.includes(channel.id);
+                const item = document.createElement('div');
+                item.className = 'channel-checkbox-item';
+                item.innerHTML = `
+                    <input type="checkbox" id="ch_${channel.id}" value="${channel.id}" ${isChecked ? 'checked' : ''} onchange="updateSelectedChannels('${channel.id}')">
+                    <label for="ch_${channel.id}">${channel.name}</label>
+                `;
+                checkboxArea.appendChild(item);
+            });
+        }
+        
+        function updateSelectedChannels(channelId) {
+            const checkbox = document.getElementById(`ch_${channelId}`);
+            if (checkbox.checked) {
+                if (!evaluationData.selectedChannels.includes(channelId)) {
+                    evaluationData.selectedChannels.push(channelId);
+                }
+            } else {
+                const index = evaluationData.selectedChannels.indexOf(channelId);
+                if (index > -1) {
+                    evaluationData.selectedChannels.splice(index, 1);
+                }
+                // 체크 해제 시 해당 채널 평가 삭제
+                removeChannelEvaluation(channelId);
+            }
+        }
+        
+        function removeChannelEvaluation(channelId) {
+            // UI에서 제거
+            const section = document.querySelector(`[data-channel-id="${channelId}"]`);
+            if (section) {
+                section.remove();
+            }
+            
+            // 데이터에서 제거
+            delete evaluationData.currentChannels[channelId];
+            delete evaluationData.existingEvaluations[channelId];
+            
+            // 선택된 채널 목록에서 제거
+            const index = evaluationData.selectedChannels.indexOf(channelId);
+            if (index > -1) {
+                evaluationData.selectedChannels.splice(index, 1);
+            }
+        }
+        
+        function loadSelectedChannels() {
+            const selectedChannels = [];
+            document.querySelectorAll('#channelCheckboxArea input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedChannels.push(checkbox.value);
+            });
+            
+            if (selectedChannels.length === 0) {
+                showAlert('평가할 채널을 선택해주세요.', 'error');
+                return;
+            }
+            
+            const evaluationsArea = document.getElementById('channelEvaluationsArea');
+            
+            showLoading(true);
+            let loadedCount = 0;
+            
+            selectedChannels.forEach(channelId => {
+                // 이미 로드된 채널은 스킵
+                if (evaluationData.currentChannels[channelId]) {
+                    loadedCount++;
+                    if (loadedCount === selectedChannels.length) {
+                        showLoading(false);
+                    }
+                    return;
+                }
+                
+                google.script.run
+                    .withSuccessHandler(function(channelMembers) {
+                        evaluationData.currentChannels[channelId] = channelMembers;
+                        
+                        // 기존 평가 데이터 가져오기
+                        google.script.run
+                            .withSuccessHandler(function(existingEval) {
+                                const html = displayChannelEvaluation(channelId, channelMembers, existingEval);
+                                evaluationsArea.innerHTML += html;
+                                
+                                loadedCount++;
+                                if (loadedCount === selectedChannels.length) {
+                                    showLoading(false);
+                                    document.getElementById('submitFirstEvalBtn').style.display = 'block';
+                                }
+                            })
+                            .withFailureHandler(function(error) {
+                                const html = displayChannelEvaluation(channelId, channelMembers, {});
+                                evaluationsArea.innerHTML += html;
+                                
+                                loadedCount++;
+                                if (loadedCount === selectedChannels.length) {
+                                    showLoading(false);
+                                    document.getElementById('submitFirstEvalBtn').style.display = 'block';
+                                }
+                            })
+                            .getExistingFirstEvaluation(channelId, evaluationData.currentEvalMonth);
+                    })
+                    .withFailureHandler(function(error) {
+                        showAlert('채널 멤버 로드 실패: ' + error, 'error');
+                        showLoading(false);
+                    })
+                    .getChannelMembersData(channelId);
+            });
+        }
+        
+        function displayChannelEvaluation(channelId, channelMembers, existingEval) {
+            const channel = evaluationData.channels.find(c => c.id === channelId);
+            
+            let html = `
+                <div class="channel-evaluation-section" data-channel-id="${channelId}">
+                    <div class="channel-info-card">
+                        <div class="channel-header">
+                            <div>
+                                <h4>${channel.name}</h4>
+                                <p class="channel-members-count">팀원 수: ${channelMembers.length}명</p>
+                                ${Object.keys(existingEval).length > 0 ? '<p style="color: #ff6b6b; font-weight: bold;">※ 기존 평가 데이터를 불러왔습니다</p>' : ''}
+                            </div>
+                            <button class="btn btn-danger" onclick="removeChannelEvaluation('${channelId}')">채널 평가 삭제</button>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-item">
+                            <span class="summary-label">투입 MM 합계:</span>
+                            <span class="summary-value" id="totalMM_${channelId}">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">잔여 기여도:</span>
+                            <span class="summary-value percentage" id="remainingText_${channelId}">100%</span>
+                        </div>
+                        <div class="progress-bar" style="margin-top: 10px;">
+                            <div class="progress-fill" id="contributionBar_${channelId}" style="width: 0%; background: #e74c3c;">0%</div>
+                        </div>
+                    </div>
+                    
+                    <table class="evaluation-table">
+                        <thead>
+                            <tr>
+                                <th>팀원명</th>
+                                <th>소속팀</th>
+                                <th>투입 MM</th>
+                                <th>1차 기여도(%)</th>
+                                <th>상세정보</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            channelMembers.forEach(member => {
+                const existing = existingEval[member.id] || existingEval.members?.find(m => m.id === member.id) || {};
+                const achievements = existing.achievement ? existing.achievement.split('|') : [''];
+                
+                html += `
+                    <tr>
+                        <td>${member.name}</td>
+                        <td>${member.teamName}</td>
+                        <td><input type="number" id="mm_${channelId}_${member.id}" step="0.1" min="0" max="1" placeholder="0.0" value="${existing.mm || ''}" onchange="updateMMTotal('${channelId}')"></td>
+                        <td><input type="number" id="contrib_${channelId}_${member.id}" step="1" min="0" max="100" placeholder="0" value="${existing.contribution1 || ''}" onchange="updateContributionBar('${channelId}')"></td>
+                        <td><button class="detail-btn" onclick="toggleDetail('${channelId}_${member.id}')">+</button></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">
+                            <div id="detail_${channelId}_${member.id}" class="detail-panel">
+                                <div style="display: flex; gap: 20px;">
+                                    <div style="flex: 1;">
+                                        <strong>개인별 핵심 성과:</strong>
+                                        <div id="achievements_${channelId}_${member.id}" class="achievements-list">
+                `;
+                
+                achievements.forEach((achievement, index) => {
+                    if (achievement || index === 0) {
+                        html += `
+                            <div class="achievement-item">
+                                <input type="text" placeholder="핵심 성과 입력" value="${achievement}">
+                                <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">삭제</button>
+                            </div>
+                        `;
+                    }
+                });
+                
+                html += `
+                                        </div>
+                                        <button onclick="addAchievement('${channelId}_${member.id}')" class="btn btn-primary" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">성과 추가</button>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <strong>1차 코멘트:</strong>
+                                        <textarea id="comment1_${channelId}_${member.id}" placeholder="평가 코멘트를 입력하세요">${existing.comment1 || ''}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            
+            // 초기값이 있으면 합계 업데이트 예약
+            if (Object.keys(existingEval).length > 0) {
+                setTimeout(() => {
+                    updateMMTotal(channelId);
+                    updateContributionBar(channelId);
+                }, 100);
+            }
+            
+            return html;
+        }
+        
+        function toggleDetail(id) {
+            const detailPanel = document.getElementById(`detail_${id}`);
+            detailPanel.classList.toggle('show');
+        }
+        
+        function updateMMTotal(channelId) {
+            const members = evaluationData.currentChannels[channelId];
+            if (!members) return;
+            
+            let totalMM = 0;
+            
+            members.forEach(member => {
+                const mm = parseFloat(document.getElementById(`mm_${channelId}_${member.id}`).value) || 0;
+                totalMM += mm;
+            });
+            
+            document.getElementById(`totalMM_${channelId}`).textContent = totalMM.toFixed(1);
+        }
+        
+        function updateContributionBar(channelId) {
+            const members = evaluationData.currentChannels[channelId];
+            if (!members) return;
+            
+            let totalContribution = 0;
+            
+            members.forEach(member => {
+                const contrib = parseFloat(document.getElementById(`contrib_${channelId}_${member.id}`).value) || 0;
+                totalContribution += contrib;
+            });
+            
+            const remaining = 100 - totalContribution;
+            const used = Math.min(totalContribution, 100);
+            
+            // 텍스트 업데이트
+            document.getElementById(`remainingText_${channelId}`).textContent = `${remaining}%`;
+            
+            // 바 업데이트
+            const bar = document.getElementById(`contributionBar_${channelId}`);
+            bar.style.width = `${used}%`;
+            bar.textContent = `${used}%`;
+            
+            // 색상 변경
+            if (totalContribution === 100) {
+                bar.style.background = '#27ae60';
+            } else if (totalContribution > 100) {
+                bar.style.background = '#e74c3c';
+            } else {
+                bar.style.background = '#3498db';
+            }
+        }
+        
+        function addAchievement(memberId) {
+            const container = document.getElementById(`achievements_${memberId}`);
+            const newItem = document.createElement('div');
+            newItem.className = 'achievement-item';
+            newItem.innerHTML = `
+                <input type="text" placeholder="핵심 성과 입력">
+                <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">삭제</button>
+            `;
+            container.appendChild(newItem);
+        }
+        
+        function removeAchievement(button) {
+            const container = button.parentElement.parentElement;
+            if (container.children.length > 1) {
+                button.parentElement.remove();
+            }
+        }
+        
+        function submitFirstEvaluation() {
+            const evaluations = [];
+            const sections = document.querySelectorAll('.channel-evaluation-section');
+            
+            if (sections.length === 0) {
+                showAlert('평가할 채널을 선택해주세요.', 'error');
+                return;
+            }
+            
+            const evalMonth = document.getElementById('evalMonth').value;
+            const teamleadId = document.getElementById('teamleadSelect').value;
+            const teamleadName = document.getElementById('teamleadSelect').selectedOptions[0].text.split(' (')[0];
+            
+            let hasError = false;
+            
+            sections.forEach(section => {
+                const channelId = section.dataset.channelId;
+                const channel = evaluationData.channels.find(c => c.id === channelId);
+                const members = evaluationData.currentChannels[channelId];
+                
+                const channelEvaluation = {
+                    evalMonth: evalMonth,
+                    channelId: channelId,
+                    channelName: channel.name,
+                    evaluatorId: teamleadId,
+                    members: []
+                };
+                
+                let totalContribution = 0;
+                
+                members.forEach(member => {
+                    const mm = parseFloat(document.getElementById(`mm_${channelId}_${member.id}`).value) || 0;
+                    const contribution = parseFloat(document.getElementById(`contrib_${channelId}_${member.id}`).value) || 0;
+                    
+                    // 성과 수집
+                    const achievements = [];
+                    document.querySelectorAll(`#achievements_${channelId}_${member.id} input[type="text"]`).forEach(input => {
+                        if (input.value.trim()) {
+                            achievements.push(input.value.trim());
+                        }
+                    });
+                    
+                    const comment = document.getElementById(`comment1_${channelId}_${member.id}`).value;
+                    
+                    totalContribution += contribution;
+                    
+                    channelEvaluation.members.push({
+                        id: member.id,
+                        name: member.name,
+                        teamName: member.teamName,
+                        mm: mm,
+                        contribution1: contribution,
+                        achievement: achievements.join('|'),
+                        comment1: comment
+                    });
+                });
+                
+                if (Math.abs(totalContribution - 100) > 0.01) {
+                    showAlert(`${channel.name} 채널의 기여도 합계가 100%가 되어야 합니다.`, 'error');
+                    hasError = true;
+                }
+                
+                evaluations.push(channelEvaluation);
+            });
+            
+            if (hasError) return;
+            
+            // 평가 정보 저장
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    // 각 채널별로 저장
+                    let savedCount = 0;
+                    
+                    evaluations.forEach(evaluation => {
+                        google.script.run
+                            .withSuccessHandler(function(result) {
+                                if (result.success) {
+                                    savedCount++;
+                                    if (savedCount === evaluations.length) {
+                                        showAlert('모든 1차 평가가 저장되었습니다.', 'success');
+                                        showLoading(false);
+                                        
+                                        // 평가 모드 변경
+                                        checkExistingEvaluation();
+                                    }
+                                } else {
+                                    showAlert(result.message, 'error');
+                                    showLoading(false);
+                                }
+                            })
+                            .withFailureHandler(function(error) {
+                                showAlert('저장 실패: ' + error, 'error');
+                                showLoading(false);
+                            })
+                            .saveFirstEvaluation(evaluation);
+                    });
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('평가 정보 저장 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .saveEvaluationInfo(evalMonth, teamleadId, teamleadName, '1차 평가 완료');
+        }
+        
+        // ===== 2차 평가 관련 함수 =====
+        function loadSecondEvaluation() {
+            const evalMonth = document.getElementById('evalMonth2nd').value;
+            if (!evalMonth) {
+                showAlert('평가월을 선택해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    evaluationData.firstEvaluation = data;
+                    displaySecondEvaluation();
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('1차 평가 데이터 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getFirstEvaluationData(evalMonth);
+        }
+        
+        function displaySecondEvaluation() {
+            const area = document.getElementById('secondEvaluationArea');
+            let html = '<h3>1차 평가 결과 검토 및 2차 평가</h3>';
+            
+            if (Object.keys(evaluationData.firstEvaluation).length === 0) {
+                html += '<p>선택한 월의 1차 평가가 없습니다.</p>';
+                area.innerHTML = html;
+                document.getElementById('submitSecondEvalBtn').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('submitSecondEvalBtn').style.display = 'block';
+            
+            // 각 채널별로 표시
+            for (const channelId in evaluationData.firstEvaluation) {
+                const channelEval = evaluationData.firstEvaluation[channelId];
+                html += `
+                    <div class="summary-box">
+                        <h4>${channelEval.channelName}</h4>
+                        <table class="evaluation-table">
+                            <thead>
+                                <tr>
+                                    <th>팀원명</th>
+                                    <th>소속팀</th>
+                                    <th>투입 MM</th>
+                                    <th>1차 기여도</th>
+                                    <th>2차 기여도(%)</th>
+                                    <th>상세정보</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                channelEval.members.forEach(member => {
+                    html += `
+                        <tr>
+                            <td>${member.name}</td>
+                            <td>${member.teamName}</td>
+                            <td>${member.mm}</td>
+                            <td class="percentage">${member.contribution1}%</td>
+                            <td><input type="number" id="contrib2_${channelId}_${member.id}" step="1" min="0" max="100" value="${member.contribution1}"></td>
+                            <td><button class="detail-btn" onclick="toggleDetail2('${channelId}_${member.id}')">+</button></td>
+                        </tr>
+                        <tr>
+                            <td colspan="6">
+                                <div id="detail2_${channelId}_${member.id}" class="detail-panel">
+                                    <strong>개인별 핵심 성과:</strong>
+                                    <p>${member.achievement ? member.achievement.split('|').join(', ') : '없음'}</p>
+                                    <strong>1차 코멘트:</strong>
+                                    <p>${member.comment1 || '없음'}</p>
+                                    <strong>2차 코멘트:</strong>
+                                    <textarea id="comment2_${channelId}_${member.id}" placeholder="2차 평가 코멘트를 입력하세요"></textarea>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table></div>';
+            }
+            
+            area.innerHTML = html;
+        }
+        
+        function toggleDetail2(id) {
+            const detailPanel = document.getElementById(`detail2_${id}`);
+            detailPanel.classList.toggle('show');
+        }
+        
+        function submitSecondEvaluation() {
+            const evalMonth = document.getElementById('evalMonth2nd').value;
+            const secondEvalData = {
+                evalMonth: evalMonth,
+                channels: {}
+            };
+            
+            for (const channelId in evaluationData.firstEvaluation) {
+                const channelEval = evaluationData.firstEvaluation[channelId];
+                const secondChannelEval = {
+                    channelId: channelId,
+                    channelName: channelEval.channelName,
+                    members: []
+                };
+                
+                channelEval.members.forEach(member => {
+                    const contrib2Input = document.getElementById(`contrib2_${channelId}_${member.id}`);
+                    const contribution2 = parseFloat(contrib2Input.value) || member.contribution1;
+                    const comment2 = document.getElementById(`comment2_${channelId}_${member.id}`).value;
+                    
+                    secondChannelEval.members.push({
+                        ...member,
+                        contribution2: contribution2,
+                        comment2: comment2
+                    });
+                });
+                
+                secondEvalData.channels[channelId] = secondChannelEval;
+            }
+            
+            // 구글 시트에 저장
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        evaluationData.secondEvaluation = secondEvalData;
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('저장 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .saveSecondEvaluation(secondEvalData);
+        }
+        
+        // ===== 최종 평가 관련 함수 =====
+        function loadFinalEvaluation() {
+            const evalMonth = document.getElementById('evalMonthFinal').value;
+            if (!evalMonth) {
+                showAlert('평가월을 선택해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    evaluationData.secondEvaluation = data;
+                    displayFinalEvaluation();
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('2차 평가 데이터 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getSecondEvaluationData(evalMonth);
+        }
+        
+        function displayFinalEvaluation() {
+            const area = document.getElementById('finalEvaluationArea');
+            let html = '<h3>최종 성과금 책정</h3>';
+            
+            if (Object.keys(evaluationData.secondEvaluation).length === 0) {
+                html += '<p>선택한 월의 2차 평가가 없습니다.</p>';
+                area.innerHTML = html;
+                document.getElementById('submitFinalEvalBtn').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('submitFinalEvalBtn').style.display = 'block';
+            
+            // 각 채널별로 표시
+            evaluationData.finalEvaluation.channels = {};
+            
+            for (const channelId in evaluationData.secondEvaluation) {
+                const channelEval = evaluationData.secondEvaluation[channelId];
+                
+                evaluationData.finalEvaluation.channels[channelId] = {
+                    channelName: channelEval.channelName,
+                    members: channelEval.members,
+                    totalAmount: 0,
+                    leaderPercentage: 0
+                };
+                
+                html += `
+                    <div class="summary-box" style="margin-bottom: 30px;">
+                        <h4>${channelEval.channelName}</h4>
+                        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <label>1차 성과금 총액:</label>
+                                <input type="number" id="total_${channelId}" placeholder="0" onchange="calculateDistribution('${channelId}')" style="width: 150px;">
+                            </div>
+                            <div>
+                                <label>팀장 성과(%):</label>
+                                <input type="number" id="leader_${channelId}" placeholder="0" min="0" max="100" onchange="calculateDistribution('${channelId}')" style="width: 100px;">
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item">
+                            <span class="summary-label">2차 성과금(배분대상):</span>
+                            <span class="summary-value amount" id="dist_${channelId}">0원</span>
+                        </div>
+                        
+                        <table class="evaluation-table">
+                            <thead>
+                                <tr>
+                                    <th>팀</th>
+                                    <th>팀원명</th>
+                                    <th>2차 기여도</th>
+                                    <th>기여도 성과금</th>
+                                    <th>실지급 성과금</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                channelEval.members.forEach(member => {
+                    html += `
+                        <tr>
+                            <td>${member.teamName}</td>
+                            <td>${member.name}</td>
+                            <td class="percentage">${member.contribution2}%</td>
+                            <td class="amount" id="calc_${channelId}_${member.id}">0원</td>
+                            <td><input type="number" id="final_${channelId}_${member.id}" placeholder="0" onchange="updateDistributionBar('${channelId}')"></td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                        
+                        <div class="progress-container">
+                            <label>성과금 분배 현황:</label>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress_${channelId}" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            area.innerHTML = html;
+        }
+        
+        function calculateDistribution(channelId) {
+            const totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+            const leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
+            
+            // 2차 성과금 계산
+            const distributionAmount = totalAmount * (100 - leaderPercentage) / 100;
+            document.getElementById(`dist_${channelId}`).textContent = `${distributionAmount.toLocaleString()}원`;
+            
+            // 각 팀원의 기여도 성과금 계산
+            const channelData = evaluationData.finalEvaluation.channels[channelId];
+            channelData.members.forEach(member => {
+                const calcAmount = distributionAmount * member.contribution2 / 100;
+                document.getElementById(`calc_${channelId}_${member.id}`).textContent = `${Math.round(calcAmount).toLocaleString()}원`;
+            });
+            
+            updateDistributionBar(channelId);
+        }
+        
+        function updateDistributionBar(channelId) {
+            const totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+            const leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
+            const distributionAmount = totalAmount * (100 - leaderPercentage) / 100;
+            
+            if (distributionAmount === 0) return;
+            
+            let totalDistributed = 0;
+            const channelData = evaluationData.finalEvaluation.channels[channelId];
+            
+            channelData.members.forEach(member => {
+                const finalAmount = parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0;
+                totalDistributed += finalAmount;
+            });
+            
+            const percentage = Math.min((totalDistributed / distributionAmount) * 100, 100);
+            const progressBar = document.getElementById(`progress_${channelId}`);
+            progressBar.style.width = `${percentage}%`;
+            progressBar.textContent = `${Math.round(percentage)}%`;
+            
+            // 색상 변경
+            if (percentage < 80) {
+                progressBar.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
+            } else if (percentage <= 100) {
+                progressBar.style.background = 'linear-gradient(to right, #3498db, #2ecc71)';
+            } else {
+                progressBar.style.background = 'linear-gradient(to right, #e67e22, #d35400)';
+            }
+        }
+        
+        function submitFinalEvaluation() {
+            const evalMonth = document.getElementById('evalMonthFinal').value;
+            const channelData = {
+                evalMonth: evalMonth,
+                channels: {}
+            };
+            
+            // 최종 데이터 수집
+            for (const channelId in evaluationData.finalEvaluation.channels) {
+                const channelInfo = evaluationData.finalEvaluation.channels[channelId];
+                channelInfo.totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+                channelInfo.leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
+                
+                channelInfo.members.forEach(member => {
+                    member.finalAmount = parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0;
+                });
+                
+                channelData.channels[channelId] = channelInfo;
+            }
+            
+            // 구글 시트에 저장
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('저장 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .saveFinalEvaluation(channelData);
+        }
+        
+        // ===== 유틸리티 함수 =====
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = `alert ${type}`;
+            alertBox.style.display = 'block';
+            
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+        
+        // ===== 초기화 =====
+        window.onload = function() {
+            // 초기 데이터 로드
+            loadInitialData();
+            
+            // 기본적으로 관리 화면 표시
+            setTimeout(() => {
+                document.querySelector('.role-btn').click();
+            }, 100);
+        };
+    </script>
+</body>
+</html>
