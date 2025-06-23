@@ -54,7 +54,7 @@ function displayExistingEvaluation(evalInfo, evaluatedChannels) {
     document.getElementById('existingEvalInfo').style.display = 'block';
     document.getElementById('evaluationEditArea').style.display = 'none';
     document.getElementById('submitFirstEvalBtn').style.display = 'none';
-    document.getElementById('channelEvaluationsArea').style.display = 'block'; // 추가
+    document.getElementById('channelEvaluationsArea').style.display = 'block';
     
     // 평가 정보 표시
     document.getElementById('lastModified').textContent = evalInfo.lastModified;
@@ -101,6 +101,7 @@ function displayChannelEvaluationReadOnly(channelId, channelEval) {
             <div class="channel-info-card">
                 <h4>${channelEval.channelName}</h4>
                 <p class="channel-members-count">팀원 수: ${channelEval.members.length}명</p>
+                ${channelEval.channelComment ? `<p style="color: #666; margin-top: 10px;"><strong>채널 코멘트:</strong> ${channelEval.channelComment}</p>` : ''}
             </div>
             
             <table class="evaluation-table">
@@ -288,12 +289,51 @@ function displayChannelEvaluation(channelId, channelMembers, existingEval) {
         <div class="channel-evaluation-section" data-channel-id="${channelId}">
             <div class="channel-info-card">
                 <div class="channel-header">
-                    <div>
+                    <div style="flex: 1;">
                         <h4>${channel.name}</h4>
                         <p class="channel-members-count">팀원 수: ${channelMembers.length}명</p>
                         ${Object.keys(existingEval).length > 0 ? '<p style="color: #ff6b6b; font-weight: bold;">※ 기존 평가 데이터를 불러왔습니다</p>' : ''}
                     </div>
-                    <button class="btn btn-danger" onclick="removeChannelEvaluation('${channelId}')">채널 평가 삭제</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-primary" style="padding: 5px 15px; font-size: 14px;" onclick="toggleChannelComment('${channelId}')">
+                            <span id="commentToggle_${channelId}">📝 채널 코멘트</span>
+                        </button>
+                        <button class="btn btn-warning" style="padding: 5px 15px; font-size: 14px;" onclick="toggleMemberManagement('${channelId}')">
+                            <span id="memberToggle_${channelId}">👥 팀원 관리</span>
+                        </button>
+                        <button class="btn btn-danger" onclick="removeChannelEvaluation('${channelId}')">🗑️ 채널 평가 삭제</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="channelComment_${channelId}" class="channel-comment-section" style="display: none;">
+                <label><strong>채널 전체 코멘트:</strong></label>
+                <textarea id="channelCommentText_${channelId}" placeholder="이 채널에 대한 전체적인 평가나 특이사항을 입력하세요" style="width: 100%; min-height: 80px; margin-top: 10px;">${existingEval.channelComment || ''}</textarea>
+            </div>
+            
+            <div id="memberManagement_${channelId}" class="member-management-section" style="display: none;">
+                <h5>👥 채널 팀원 관리</h5>
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <label>팀 선택:</label>
+                        <select id="teamSelect_${channelId}" onchange="loadTeamMembers('${channelId}')" style="width: 100%;">
+                            <option value="">팀을 선택하세요</option>
+                            <option value="team1">스튜디오 1팀</option>
+                            <option value="team2">스튜디오 2팀</option>
+                            <option value="team3">스튜디오 3팀</option>
+                            <option value="team4">스튜디오 4팀</option>
+                            <option value="team5">스튜디오 5팀</option>
+                        </select>
+                    </div>
+                    <div style="flex: 2;">
+                        <label>팀원 추가:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="memberSelect_${channelId}" style="flex: 1;">
+                                <option value="">팀원을 선택하세요</option>
+                            </select>
+                            <button class="btn btn-success" onclick="addMemberToChannelEval('${channelId}')">➕ 추가</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -319,56 +359,17 @@ function displayChannelEvaluation(channelId, channelMembers, existingEval) {
                         <th>투입 MM</th>
                         <th>1차 기여도(%)</th>
                         <th>상세정보</th>
+                        <th>삭제</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tbody_${channelId}">
     `;
     
     channelMembers.forEach(member => {
         const existing = existingEval[member.id] || existingEval.members?.find(m => m.id === member.id) || {};
         const achievements = existing.achievement ? existing.achievement.split('|') : [''];
         
-        html += `
-            <tr>
-                <td>${member.name}</td>
-                <td>${member.teamName}</td>
-                <td><input type="number" id="mm_${channelId}_${member.id}" step="0.1" min="0" max="1" placeholder="0.0" value="${existing.mm || ''}" onchange="updateMMTotal('${channelId}')"></td>
-                <td><input type="number" id="contrib_${channelId}_${member.id}" step="1" min="0" max="100" placeholder="0" value="${existing.contribution1 || ''}" onchange="updateContributionBar('${channelId}')"></td>
-                <td><button class="detail-btn" onclick="toggleDetail('${channelId}_${member.id}')">+</button></td>
-            </tr>
-            <tr>
-                <td colspan="5">
-                    <div id="detail_${channelId}_${member.id}" class="detail-panel">
-                        <div style="display: flex; gap: 20px;">
-                            <div style="flex: 1;">
-                                <strong>개인별 핵심 성과:</strong>
-                                <div id="achievements_${channelId}_${member.id}" class="achievements-list">
-        `;
-        
-        achievements.forEach((achievement, index) => {
-            if (achievement || index === 0) {
-                html += `
-                    <div class="achievement-item">
-                        <input type="text" placeholder="핵심 성과 입력" value="${achievement}">
-                        <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">삭제</button>
-                    </div>
-                `;
-            }
-        });
-        
-        html += `
-                                </div>
-                                <button onclick="addAchievement('${channelId}_${member.id}')" class="btn btn-primary" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">성과 추가</button>
-                            </div>
-                            <div style="flex: 1;">
-                                <strong>1차 코멘트:</strong>
-                                <textarea id="comment1_${channelId}_${member.id}" placeholder="평가 코멘트를 입력하세요">${existing.comment1 || ''}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        `;
+        html += createMemberRow(channelId, member, existing, achievements);
     });
     
     html += '</tbody></table></div>';
@@ -384,6 +385,215 @@ function displayChannelEvaluation(channelId, channelMembers, existingEval) {
     return html;
 }
 
+// 팀원 행 생성 함수
+function createMemberRow(channelId, member, existing, achievements) {
+    let html = `
+        <tr id="row_${channelId}_${member.id}">
+            <td>${member.name}</td>
+            <td>${member.teamName}</td>
+            <td><input type="number" id="mm_${channelId}_${member.id}" step="0.1" min="0" max="1" placeholder="0.0" value="${existing.mm || ''}" onchange="updateMMTotal('${channelId}')"></td>
+            <td><input type="number" id="contrib_${channelId}_${member.id}" step="1" min="0" max="100" placeholder="0" value="${existing.contribution1 || ''}" onchange="updateContributionBar('${channelId}')"></td>
+            <td><button class="detail-btn" onclick="toggleDetail('${channelId}_${member.id}')">+</button></td>
+            <td><button class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;" onclick="removeMemberFromChannelEval('${channelId}', '${member.id}')">🗑️ 삭제</button></td>
+        </tr>
+        <tr id="detail_row_${channelId}_${member.id}">
+            <td colspan="6">
+                <div id="detail_${channelId}_${member.id}" class="detail-panel">
+                    <div style="display: flex; gap: 20px;">
+                        <div style="flex: 1;">
+                            <strong>🏆 개인별 핵심 성과:</strong>
+                            <div id="achievements_${channelId}_${member.id}" class="achievements-list">
+    `;
+    
+    achievements.forEach((achievement, index) => {
+        if (achievement || index === 0) {
+            html += `
+                <div class="achievement-item">
+                    <input type="text" placeholder="핵심 성과 입력" value="${achievement}">
+                    <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">❌ 삭제</button>
+                </div>
+            `;
+        }
+    });
+    
+    html += `
+                            </div>
+                            <button onclick="addAchievement('${channelId}_${member.id}')" class="btn btn-primary" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">➕ 성과 추가</button>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>💬 1차 코멘트:</strong>
+                            <textarea id="comment1_${channelId}_${member.id}" placeholder="평가 코멘트를 입력하세요">${existing.comment1 || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+    
+    return html;
+}
+
+// 팀원 관리 토글
+function toggleMemberManagement(channelId) {
+    const managementSection = document.getElementById(`memberManagement_${channelId}`);
+    const toggleButton = document.getElementById(`memberToggle_${channelId}`);
+    
+    if (managementSection.style.display === 'none') {
+        managementSection.style.display = 'block';
+        toggleButton.textContent = '👥 팀원 관리 닫기';
+    } else {
+        managementSection.style.display = 'none';
+        toggleButton.textContent = '👥 팀원 관리';
+    }
+}
+
+// 팀별 멤버 로드
+function loadTeamMembers(channelId) {
+    const teamId = document.getElementById(`teamSelect_${channelId}`).value;
+    const memberSelect = document.getElementById(`memberSelect_${channelId}`);
+    
+    if (!teamId) {
+        memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+        return;
+    }
+    
+    // 현재 채널에 이미 있는 멤버 ID 목록
+    const existingMemberIds = Object.keys(evaluationData.currentChannels[channelId] || {})
+        .map(key => evaluationData.currentChannels[channelId][key].id);
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(teamMembers) {
+            memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+            
+            teamMembers.forEach(member => {
+                // 이미 추가된 멤버는 제외
+                if (!existingMemberIds.includes(member.id)) {
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = member.name;
+                    option.dataset.teamName = evaluationData.teams[member.teamId].name;
+                    memberSelect.appendChild(option);
+                }
+            });
+            
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('팀원 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getTeamMembersData(teamId);
+}
+
+// 채널에 팀원 추가
+function addMemberToChannelEval(channelId) {
+    const memberSelect = document.getElementById(`memberSelect_${channelId}`);
+    const selectedOption = memberSelect.selectedOptions[0];
+    
+    if (!selectedOption || !selectedOption.value) {
+        showAlert('추가할 팀원을 선택해주세요.', 'error');
+        return;
+    }
+    
+    const memberId = selectedOption.value;
+    const memberName = selectedOption.textContent;
+    const teamName = selectedOption.dataset.teamName;
+    
+    // 데이터베이스에 추가
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                // UI에 추가
+                const tbody = document.getElementById(`tbody_${channelId}`);
+                const newMember = {
+                    id: memberId,
+                    name: memberName,
+                    teamName: teamName
+                };
+                
+                // 현재 채널 멤버 목록에 추가
+                if (!evaluationData.currentChannels[channelId]) {
+                    evaluationData.currentChannels[channelId] = [];
+                }
+                evaluationData.currentChannels[channelId].push(newMember);
+                
+                // 테이블에 행 추가
+                const newRow = createMemberRow(channelId, newMember, {}, ['']);
+                tbody.insertAdjacentHTML('beforeend', newRow);
+                
+                // 선택 옵션에서 제거
+                selectedOption.remove();
+                
+                // 팀원 수 업데이트
+                const countElement = document.querySelector(`[data-channel-id="${channelId}"] .channel-members-count`);
+                countElement.textContent = `팀원 수: ${evaluationData.currentChannels[channelId].length}명`;
+                
+                showAlert(result.message, 'success');
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('팀원 추가 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .addMemberToChannel(channelId, memberId);
+}
+
+// 채널에서 팀원 제거
+function removeMemberFromChannelEval(channelId, memberId) {
+    if (!confirm('이 팀원을 채널에서 제거하시겠습니까?')) return;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                // UI에서 제거
+                document.getElementById(`row_${channelId}_${memberId}`).remove();
+                document.getElementById(`detail_row_${channelId}_${memberId}`).remove();
+                
+                // 데이터에서 제거
+                evaluationData.currentChannels[channelId] = evaluationData.currentChannels[channelId]
+                    .filter(m => m.id !== memberId);
+                
+                // 팀원 수 업데이트
+                const countElement = document.querySelector(`[data-channel-id="${channelId}"] .channel-members-count`);
+                countElement.textContent = `팀원 수: ${evaluationData.currentChannels[channelId].length}명`;
+                
+                // 합계 업데이트
+                updateMMTotal(channelId);
+                updateContributionBar(channelId);
+                
+                showAlert(result.message, 'success');
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('팀원 제거 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .removeMemberFromChannel(channelId, memberId);
+}
+
+// 채널 코멘트 토글 함수
+function toggleChannelComment(channelId) {
+    const commentSection = document.getElementById(`channelComment_${channelId}`);
+    const toggleButton = document.getElementById(`commentToggle_${channelId}`);
+    
+    if (commentSection.style.display === 'none') {
+        commentSection.style.display = 'block';
+        toggleButton.textContent = '📝 채널 코멘트 닫기';
+    } else {
+        commentSection.style.display = 'none';
+        toggleButton.textContent = '📝 채널 코멘트';
+    }
+}
+
 function toggleDetail(id) {
     const detailPanel = document.getElementById(`detail_${id}`);
     detailPanel.classList.toggle('show');
@@ -396,8 +606,11 @@ function updateMMTotal(channelId) {
     let totalMM = 0;
     
     members.forEach(member => {
-        const mm = parseFloat(document.getElementById(`mm_${channelId}_${member.id}`).value) || 0;
-        totalMM += mm;
+        const mmInput = document.getElementById(`mm_${channelId}_${member.id}`);
+        if (mmInput) {
+            const mm = parseFloat(mmInput.value) || 0;
+            totalMM += mm;
+        }
     });
     
     document.getElementById(`totalMM_${channelId}`).textContent = totalMM.toFixed(1);
@@ -410,8 +623,11 @@ function updateContributionBar(channelId) {
     let totalContribution = 0;
     
     members.forEach(member => {
-        const contrib = parseFloat(document.getElementById(`contrib_${channelId}_${member.id}`).value) || 0;
-        totalContribution += contrib;
+        const contribInput = document.getElementById(`contrib_${channelId}_${member.id}`);
+        if (contribInput) {
+            const contrib = parseFloat(contribInput.value) || 0;
+            totalContribution += contrib;
+        }
     });
     
     const remaining = 100 - totalContribution;
@@ -441,7 +657,7 @@ function addAchievement(memberId) {
     newItem.className = 'achievement-item';
     newItem.innerHTML = `
         <input type="text" placeholder="핵심 성과 입력">
-        <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">삭제</button>
+                            <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">❌ 삭제</button>
     `;
     container.appendChild(newItem);
 }
@@ -471,7 +687,7 @@ function submitFirstEvaluation() {
         return;
     }
     
-    console.log('저장할 평가월:', evalMonth); // 디버깅용
+    console.log('저장할 평가월:', evalMonth);
     
     let hasError = false;
     
@@ -480,10 +696,14 @@ function submitFirstEvaluation() {
         const channel = evaluationData.channels.find(c => c.id === channelId);
         const members = evaluationData.currentChannels[channelId];
         
+        // 채널 코멘트 수집
+        const channelComment = document.getElementById(`channelCommentText_${channelId}`)?.value || '';
+        
         const channelEvaluation = {
-            evalMonth: evalMonth, // 이 부분이 중요!
+            evalMonth: evalMonth,
             channelId: channelId,
             channelName: channel.name,
+            channelComment: channelComment,
             evaluatorId: teamleadId,
             members: []
         };
@@ -491,18 +711,25 @@ function submitFirstEvaluation() {
         let totalContribution = 0;
         
         members.forEach(member => {
-            const mm = parseFloat(document.getElementById(`mm_${channelId}_${member.id}`).value) || 0;
-            const contribution = parseFloat(document.getElementById(`contrib_${channelId}_${member.id}`).value) || 0;
+            const mmInput = document.getElementById(`mm_${channelId}_${member.id}`);
+            const contribInput = document.getElementById(`contrib_${channelId}_${member.id}`);
+            
+            if (!mmInput || !contribInput) return; // 요소가 없으면 스킵
+            
+            const mm = parseFloat(mmInput.value) || 0;
+            const contribution = parseFloat(contribInput.value) || 0;
             
             // 성과 수집
             const achievements = [];
-            document.querySelectorAll(`#achievements_${channelId}_${member.id} input[type="text"]`).forEach(input => {
+            const achievementInputs = document.querySelectorAll(`#achievements_${channelId}_${member.id} input[type="text"]`);
+            achievementInputs.forEach(input => {
                 if (input.value.trim()) {
                     achievements.push(input.value.trim());
                 }
             });
             
-            const comment = document.getElementById(`comment1_${channelId}_${member.id}`).value;
+            const commentElement = document.getElementById(`comment1_${channelId}_${member.id}`);
+            const comment = commentElement ? commentElement.value : '';
             
             totalContribution += contribution;
             
@@ -531,7 +758,7 @@ function submitFirstEvaluation() {
     showLoading(true);
     google.script.run
         .withSuccessHandler(function(result) {
-            console.log('평가정보 저장 결과:', result); // 디버깅용
+            console.log('평가정보 저장 결과:', result);
             
             // 각 채널별로 저장
             let savedCount = 0;
@@ -539,14 +766,14 @@ function submitFirstEvaluation() {
             evaluations.forEach(evaluation => {
                 google.script.run
                     .withSuccessHandler(function(result) {
-                        console.log('채널 평가 저장 결과:', result); // 디버깅용
+                        console.log('채널 평가 저장 결과:', result);
                         
                         if (result.success) {
                             savedCount++;
                             if (savedCount === evaluations.length) {
                                 showAlert('모든 1차 평가가 저장되었습니다.', 'success');
                                 
-                                // 데이터 상태 확인 (디버깅용)
+                                // 데이터 상태 확인
                                 google.script.run
                                     .withSuccessHandler(function(status) {
                                         console.log('데이터 상태:', status);
@@ -582,7 +809,7 @@ function loadSecondEvaluation() {
         return;
     }
     
-    console.log('2차 평가 로드 - 평가월:', evalMonth); // 디버깅용
+    console.log('2차 평가 로드 - 평가월:', evalMonth);
     
     showLoading(true);
     
@@ -594,7 +821,7 @@ function loadSecondEvaluation() {
             // 실제 데이터 로드
             google.script.run
                 .withSuccessHandler(function(data) {
-                    console.log('1차 평가 데이터:', data); // 디버깅용
+                    console.log('1차 평가 데이터:', data);
                     evaluationData.firstEvaluation = data;
                     displaySecondEvaluation();
                     showLoading(false);
@@ -614,7 +841,7 @@ function loadSecondEvaluation() {
 
 function displaySecondEvaluation() {
     const area = document.getElementById('secondEvaluationArea');
-    let html = '<h3>1차 평가 결과 검토 및 2차 평가</h3>';
+    let html = '<h3>📋 1차 평가 결과 검토 및 2차 평가</h3>';
     
     if (Object.keys(evaluationData.firstEvaluation).length === 0) {
         html += '<p>선택한 월의 1차 평가가 없습니다.</p>';
@@ -628,9 +855,35 @@ function displaySecondEvaluation() {
     // 각 채널별로 표시
     for (const channelId in evaluationData.firstEvaluation) {
         const channelEval = evaluationData.firstEvaluation[channelId];
+        
+        // MM 합계와 기여도 합계 계산
+        let totalMM = 0;
+        let totalContrib1 = 0;
+        channelEval.members.forEach(member => {
+            totalMM += parseFloat(member.mm) || 0;
+            totalContrib1 += parseFloat(member.contribution1) || 0;
+        });
+        
         html += `
             <div class="summary-box">
                 <h4>${channelEval.channelName}</h4>
+                ${channelEval.channelComment ? `<p style="color: #666; margin-bottom: 15px;"><strong>채널 코멘트:</strong> ${channelEval.channelComment}</p>` : ''}
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div class="summary-item">
+                        <span class="summary-label">투입 MM 합계:</span>
+                        <span class="summary-value">${totalMM.toFixed(1)}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">1차 기여도 합계:</span>
+                        <span class="summary-value percentage">${totalContrib1}%</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">2차 기여도 합계:</span>
+                        <span class="summary-value percentage" id="totalContrib2_${channelId}">0%</span>
+                    </div>
+                </div>
+                
                 <table class="evaluation-table">
                     <thead>
                         <tr>
@@ -652,7 +905,7 @@ function displaySecondEvaluation() {
                     <td>${member.teamName}</td>
                     <td>${member.mm}</td>
                     <td class="percentage">${member.contribution1}%</td>
-                    <td><input type="number" id="contrib2_${channelId}_${member.id}" step="1" min="0" max="100" value="${member.contribution1}"></td>
+                    <td><input type="number" id="contrib2_${channelId}_${member.id}" step="1" min="0" max="100" value="${member.contribution1}" onchange="updateContrib2Total('${channelId}')"></td>
                     <td><button class="detail-btn" onclick="toggleDetail2('${channelId}_${member.id}')">+</button></td>
                 </tr>
                 <tr>
@@ -662,7 +915,7 @@ function displaySecondEvaluation() {
                             <p>${member.achievement ? member.achievement.split('|').join(', ') : '없음'}</p>
                             <strong>1차 코멘트:</strong>
                             <p>${member.comment1 || '없음'}</p>
-                            <strong>2차 코멘트:</strong>
+                            <strong>📝 2차 코멘트:</strong>
                             <textarea id="comment2_${channelId}_${member.id}" placeholder="2차 평가 코멘트를 입력하세요"></textarea>
                         </div>
                     </td>
@@ -674,6 +927,30 @@ function displaySecondEvaluation() {
     }
     
     area.innerHTML = html;
+    
+    // 초기 2차 기여도 합계 계산
+    for (const channelId in evaluationData.firstEvaluation) {
+        updateContrib2Total(channelId);
+    }
+}
+
+// 2차 기여도 합계 업데이트
+function updateContrib2Total(channelId) {
+    const channelEval = evaluationData.firstEvaluation[channelId];
+    let total = 0;
+    
+    channelEval.members.forEach(member => {
+        const contrib2Input = document.getElementById(`contrib2_${channelId}_${member.id}`);
+        if (contrib2Input) {
+            total += parseFloat(contrib2Input.value) || 0;
+        }
+    });
+    
+    const totalElement = document.getElementById(`totalContrib2_${channelId}`);
+    if (totalElement) {
+        totalElement.textContent = `${total}%`;
+        totalElement.style.color = (total === 100) ? '#27ae60' : (total > 100) ? '#e74c3c' : '#3498db';
+    }
 }
 
 function toggleDetail2(id) {
@@ -693,6 +970,7 @@ function submitSecondEvaluation() {
         const secondChannelEval = {
             channelId: channelId,
             channelName: channelEval.channelName,
+            channelComment: channelEval.channelComment || '', // 채널 코멘트 포함
             members: []
         };
         
@@ -749,12 +1027,12 @@ function loadFinalEvaluation() {
             showAlert('2차 평가 데이터 로드 실패: ' + error, 'error');
             showLoading(false);
         })
-        .getSecondEvaluationData(evalMonth);
+        .getFinalEvaluationDetailData(evalMonth);
 }
 
 function displayFinalEvaluation() {
     const area = document.getElementById('finalEvaluationArea');
-    let html = '<h3>최종 성과금 책정</h3>';
+    let html = '<h3>💰 최종 성과금 책정</h3>';
     
     if (Object.keys(evaluationData.secondEvaluation).length === 0) {
         html += '<p>선택한 월의 2차 평가가 없습니다.</p>';
@@ -771,8 +1049,15 @@ function displayFinalEvaluation() {
     for (const channelId in evaluationData.secondEvaluation) {
         const channelEval = evaluationData.secondEvaluation[channelId];
         
+        // MM 합계 계산
+        let totalMM = 0;
+        channelEval.members.forEach(member => {
+            totalMM += parseFloat(member.mm) || 0;
+        });
+        
         evaluationData.finalEvaluation.channels[channelId] = {
             channelName: channelEval.channelName,
+            channelComment: channelEval.channelComment || '',
             members: channelEval.members,
             totalAmount: 0,
             leaderPercentage: 0
@@ -781,20 +1066,45 @@ function displayFinalEvaluation() {
         html += `
             <div class="summary-box" style="margin-bottom: 30px;">
                 <h4>${channelEval.channelName}</h4>
+                ${channelEval.channelComment ? `
+                    <div style="background: #272727; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3f3f3f;">
+                        <button class="btn btn-primary" style="padding: 5px 15px; font-size: 14px; margin-bottom: 10px;" onclick="toggleChannelDetail('${channelId}')">
+                            <span id="channelDetailToggle_${channelId}">📋 채널 상세정보 보기</span>
+                        </button>
+                        <div id="channelDetail_${channelId}" class="channel-detail-box" style="display: none;">
+                            <p><strong>채널 코멘트:</strong> ${channelEval.channelComment}</p>
+                        </div>
+                    </div>
+                ` : ''}
+                
                 <div style="display: flex; gap: 20px; margin-bottom: 20px;">
                     <div>
-                        <label>1차 성과금 총액:</label>
+                        <label>💰 1차 성과금 총액 (만원):</label>
                         <input type="number" id="total_${channelId}" placeholder="0" onchange="calculateDistribution('${channelId}')" style="width: 150px;">
                     </div>
                     <div>
-                        <label>팀장 성과(%):</label>
+                        <label>👔 팀장 성과(%):</label>
                         <input type="number" id="leader_${channelId}" placeholder="0" min="0" max="100" onchange="calculateDistribution('${channelId}')" style="width: 100px;">
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">투입 MM 합계:</span>
+                        <span class="summary-value">${totalMM.toFixed(1)}</span>
                     </div>
                 </div>
                 
-                <div class="summary-item">
+                <div class="summary-item" style="align-items: center; margin-bottom: 10px;">
                     <span class="summary-label">2차 성과금(배분대상):</span>
-                    <span class="summary-value amount" id="dist_${channelId}">0원</span>
+                    <span class="summary-value amount" id="dist_${channelId}" style="font-size: 24px; margin-left: 15px;">0만원</span>
+                </div>
+                
+                <div class="progress-container" style="margin-bottom: 20px;">
+                    <label>💸 성과금 분배 현황:</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress_${channelId}" style="width: 0%">0%</div>
+                    </div>
+                    <div id="overDistribution_${channelId}" style="color: #e74c3c; font-weight: bold; margin-top: 5px; display: none;">
+                        ⚠️ 분배 금액이 배분 대상을 초과했습니다!
+                    </div>
                 </div>
                 
                 <table class="evaluation-table">
@@ -802,9 +1112,12 @@ function displayFinalEvaluation() {
                         <tr>
                             <th>팀</th>
                             <th>팀원명</th>
+                            <th>투입 MM</th>
+                            <th>1차 기여도</th>
                             <th>2차 기여도</th>
                             <th>기여도 성과금</th>
                             <th>실지급 성과금</th>
+                            <th>상세정보</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -815,9 +1128,38 @@ function displayFinalEvaluation() {
                 <tr>
                     <td>${member.teamName}</td>
                     <td>${member.name}</td>
+                    <td>${member.mm}</td>
+                    <td class="percentage">${member.contribution1}%</td>
                     <td class="percentage">${member.contribution2}%</td>
-                    <td class="amount" id="calc_${channelId}_${member.id}">0원</td>
-                    <td><input type="number" id="final_${channelId}_${member.id}" placeholder="0" onchange="updateDistributionBar('${channelId}')"></td>
+                    <td class="amount" id="calc_${channelId}_${member.id}">0만원</td>
+                    <td><input type="number" id="final_${channelId}_${member.id}" placeholder="0" onchange="updateDistributionBar('${channelId}')" style="width: 100px;"> 만원</td>
+                    <td><button class="detail-btn" onclick="toggleFinalDetail('${channelId}_${member.id}')">+</button></td>
+                </tr>
+                <tr>
+                    <td colspan="8">
+                        <div id="finalDetail_${channelId}_${member.id}" class="detail-panel">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <strong>개인별 핵심 성과:</strong>
+                                    <p style="background: #272727; color: #f1f1f1; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                        ${member.achievement ? member.achievement.split('|').join(', ') : '없음'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <strong>1차 코멘트:</strong>
+                                    <p style="background: #272727; color: #f1f1f1; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                        ${member.comment1 || '없음'}
+                                    </p>
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <strong>2차 코멘트:</strong>
+                                    <p style="background: #272727; color: #f1f1f1; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                        ${member.comment2 || '없음'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
             `;
         });
@@ -825,13 +1167,6 @@ function displayFinalEvaluation() {
         html += `
                     </tbody>
                 </table>
-                
-                <div class="progress-container">
-                    <label>성과금 분배 현황:</label>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress_${channelId}" style="width: 0%">0%</div>
-                    </div>
-                </div>
             </div>
         `;
     }
@@ -839,51 +1174,96 @@ function displayFinalEvaluation() {
     area.innerHTML = html;
 }
 
+// 채널 상세정보 토글
+function toggleChannelDetail(channelId) {
+    const detailDiv = document.getElementById(`channelDetail_${channelId}`);
+    const toggleBtn = document.getElementById(`channelDetailToggle_${channelId}`);
+    
+    if (detailDiv.style.display === 'none') {
+        detailDiv.style.display = 'block';
+        toggleBtn.textContent = '📋 채널 상세정보 닫기';
+    } else {
+        detailDiv.style.display = 'none';
+        toggleBtn.textContent = '📋 채널 상세정보 보기';
+    }
+}
+
+// 최종 평가 상세정보 토글
+function toggleFinalDetail(id) {
+    const detailPanel = document.getElementById(`finalDetail_${id}`);
+    detailPanel.classList.toggle('show');
+}
+
 function calculateDistribution(channelId) {
-    const totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+    const totalAmountInManwon = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
     const leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
     
-    // 2차 성과금 계산
-    const distributionAmount = totalAmount * (100 - leaderPercentage) / 100;
-    document.getElementById(`dist_${channelId}`).textContent = `${distributionAmount.toLocaleString()}원`;
+    // 2차 성과금 계산 (만원 단위)
+    const distributionAmountInManwon = totalAmountInManwon * (100 - leaderPercentage) / 100;
     
-    // 각 팀원의 기여도 성과금 계산
+    // 정수로 표시 (.0 제거)
+    const formattedAmount = distributionAmountInManwon % 1 === 0 
+        ? distributionAmountInManwon.toString() 
+        : distributionAmountInManwon.toFixed(1);
+    
+    document.getElementById(`dist_${channelId}`).textContent = `${formattedAmount}만원`;
+    
+    // 각 팀원의 기여도 성과금 계산 (만원 단위)
     const channelData = evaluationData.finalEvaluation.channels[channelId];
     channelData.members.forEach(member => {
-        const calcAmount = distributionAmount * member.contribution2 / 100;
-        document.getElementById(`calc_${channelId}_${member.id}`).textContent = `${Math.round(calcAmount).toLocaleString()}원`;
+        const calcAmountInManwon = distributionAmountInManwon * member.contribution2 / 100;
+        
+        // 정수로 표시 (.0 제거)
+        const formattedCalcAmount = calcAmountInManwon % 1 === 0 
+            ? calcAmountInManwon.toString() 
+            : calcAmountInManwon.toFixed(1);
+        
+        document.getElementById(`calc_${channelId}_${member.id}`).textContent = `${formattedCalcAmount}만원`;
     });
     
     updateDistributionBar(channelId);
 }
 
 function updateDistributionBar(channelId) {
-    const totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+    const totalAmountInManwon = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
     const leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
-    const distributionAmount = totalAmount * (100 - leaderPercentage) / 100;
+    const distributionAmountInManwon = totalAmountInManwon * (100 - leaderPercentage) / 100;
     
-    if (distributionAmount === 0) return;
+    if (distributionAmountInManwon === 0) return;
     
-    let totalDistributed = 0;
+    let totalDistributedInManwon = 0;
     const channelData = evaluationData.finalEvaluation.channels[channelId];
     
     channelData.members.forEach(member => {
-        const finalAmount = parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0;
-        totalDistributed += finalAmount;
+        const finalAmountInManwon = parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0;
+        totalDistributedInManwon += finalAmountInManwon;
     });
     
-    const percentage = Math.min((totalDistributed / distributionAmount) * 100, 100);
+    const percentage = (totalDistributedInManwon / distributionAmountInManwon) * 100;
     const progressBar = document.getElementById(`progress_${channelId}`);
-    progressBar.style.width = `${percentage}%`;
+    const overDistributionWarning = document.getElementById(`overDistribution_${channelId}`);
+    
+    progressBar.style.width = `${Math.min(percentage, 100)}%`;
     progressBar.textContent = `${Math.round(percentage)}%`;
     
-    // 색상 변경
-    if (percentage < 80) {
-        progressBar.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
-    } else if (percentage <= 100) {
-        progressBar.style.background = 'linear-gradient(to right, #3498db, #2ecc71)';
+    // 색상 변경 및 경고 메시지
+    if (percentage > 100) {
+        progressBar.style.background = '#e74c3c';
+        overDistributionWarning.style.display = 'block';
+        
+        // 정수로 표시 (.0 제거)
+        const overAmount = totalDistributedInManwon - distributionAmountInManwon;
+        const formattedOverAmount = overAmount % 1 === 0 
+            ? overAmount.toString() 
+            : overAmount.toFixed(1);
+        
+        overDistributionWarning.textContent = `⚠️ ${formattedOverAmount}만원 초과 분배되었습니다!`;
+    } else if (percentage === 100) {
+        progressBar.style.background = 'linear-gradient(to right, #27ae60, #2ecc71)';
+        overDistributionWarning.style.display = 'none';
     } else {
-        progressBar.style.background = 'linear-gradient(to right, #e67e22, #d35400)';
+        progressBar.style.background = 'linear-gradient(to right, #3498db, #2980b9)';
+        overDistributionWarning.style.display = 'none';
     }
 }
 
@@ -897,11 +1277,13 @@ function submitFinalEvaluation() {
     // 최종 데이터 수집
     for (const channelId in evaluationData.finalEvaluation.channels) {
         const channelInfo = evaluationData.finalEvaluation.channels[channelId];
-        channelInfo.totalAmount = parseFloat(document.getElementById(`total_${channelId}`).value) || 0;
+        // 만원 단위를 원 단위로 변환하여 저장
+        channelInfo.totalAmount = (parseFloat(document.getElementById(`total_${channelId}`).value) || 0) * 10000;
         channelInfo.leaderPercentage = parseFloat(document.getElementById(`leader_${channelId}`).value) || 0;
         
         channelInfo.members.forEach(member => {
-            member.finalAmount = parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0;
+            // 만원 단위를 원 단위로 변환
+            member.finalAmount = (parseFloat(document.getElementById(`final_${channelId}_${member.id}`).value) || 0) * 10000;
         });
         
         channelData.channels[channelId] = channelInfo;
@@ -924,6 +1306,7 @@ function submitFinalEvaluation() {
         })
         .saveFinalEvaluation(channelData);
 }
+
 // ===== 디버깅 함수 =====
 function debugEvaluation() {
     const evalMonth = document.getElementById('evalMonth2nd').value;
@@ -953,5 +1336,198 @@ function debugEvaluation() {
             showLoading(false);
         })
         .debugFirstEvaluation(evalMonth);
+}
+
+// ===== 전월 비교 기능 =====
+function loadComparisonData() {
+    const month1 = document.getElementById('compareMonth1').value;
+    const month2 = document.getElementById('compareMonth2').value;
+    
+    if (!month1 || !month2) {
+        showAlert('비교할 두 달을 모두 선택해주세요.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    
+    // 두 달의 데이터를 가져오기
+    Promise.all([
+        new Promise((resolve, reject) => {
+            google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .getComparisonData(month1);
+        }),
+        new Promise((resolve, reject) => {
+            google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .getComparisonData(month2);
+        })
+    ]).then(([data1, data2]) => {
+        displayComparison(month1, data1, month2, data2);
+        showLoading(false);
+    }).catch(error => {
+        showAlert('데이터 로드 실패: ' + error, 'error');
+        showLoading(false);
+    });
+}
+
+function displayComparison(month1, data1, month2, data2) {
+    const area = document.getElementById('comparisonArea');
+    let html = `
+        <h3>📊 평가 데이터 비교 분석</h3>
+        <div class="comparison-summary">
+            <div class="summary-item">
+                <span class="summary-label">비교 기간:</span>
+                <span class="summary-value">${month1} → ${month2}</span>
+            </div>
+        </div>
+    `;
+    
+    // 채널별 비교
+    const allChannels = new Set([...Object.keys(data1.evaluations), ...Object.keys(data2.evaluations)]);
+    
+    allChannels.forEach(channelId => {
+        const channel1 = data1.evaluations[channelId];
+        const channel2 = data2.evaluations[channelId];
+        
+        if (!channel1 && !channel2) return;
+        
+        const channelName = channel1?.channelName || channel2?.channelName || channelId;
+        
+        html += `
+            <div class="channel-comparison-section">
+                <h4>${channelName}</h4>
+        `;
+        
+        // 총 성과금 비교
+        if (data1.finalEval[channelId] && data2.finalEval[channelId]) {
+            const total1 = data1.finalEval[channelId].totalAmount / 10000; // 만원 단위
+            const total2 = data2.finalEval[channelId].totalAmount / 10000;
+            const diff = total2 - total1;
+            const diffPercent = total1 ? ((diff / total1) * 100).toFixed(1) : 0;
+            
+            // 정수로 표시 (.0 제거)
+            const formatAmount = (amount) => {
+                return amount % 1 === 0 ? amount.toString() : amount.toFixed(1);
+            };
+            
+            html += `
+                <div class="comparison-box">
+                    <div class="comparison-item">
+                        <span>총 성과금:</span>
+                        <span>${month1}: ${formatAmount(total1)}만원</span>
+                        <span>${month2}: ${formatAmount(total2)}만원</span>
+                        <span class="${diff >= 0 ? 'positive-change' : 'negative-change'}">
+                            ${diff >= 0 ? '▲' : '▼'} ${formatAmount(Math.abs(diff))}만원 (${diffPercent}%)
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 팀원별 비교 테이블
+        html += `
+            <table class="evaluation-table">
+                <thead>
+                    <tr>
+                        <th>팀원명</th>
+                        <th>팀</th>
+                        <th>${month1} MM</th>
+                        <th>${month2} MM</th>
+                        <th>MM 변화</th>
+                        <th>${month1} 기여도</th>
+                        <th>${month2} 기여도</th>
+                        <th>기여도 변화</th>
+                        <th>${month1} 성과금</th>
+                        <th>${month2} 성과금</th>
+                        <th>성과금 변화</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // 모든 멤버 수집
+        const allMembers = new Map();
+        
+        if (channel1) {
+            channel1.members.forEach(m => {
+                allMembers.set(m.id, { 
+                    name: m.name, 
+                    teamName: m.teamName,
+                    month1: m 
+                });
+            });
+        }
+        
+        if (channel2) {
+            channel2.members.forEach(m => {
+                if (allMembers.has(m.id)) {
+                    allMembers.get(m.id).month2 = m;
+                } else {
+                    allMembers.set(m.id, { 
+                        name: m.name, 
+                        teamName: m.teamName,
+                        month2: m 
+                    });
+                }
+            });
+        }
+        
+        // 테이블 행 생성
+        allMembers.forEach((memberData, memberId) => {
+            const m1 = memberData.month1 || {};
+            const m2 = memberData.month2 || {};
+            
+            const mm1 = m1.mm || 0;
+            const mm2 = m2.mm || 0;
+            const mmDiff = mm2 - mm1;
+            
+            const contrib1 = m1.contribution2 || m1.contribution1 || 0;
+            const contrib2 = m2.contribution2 || m2.contribution1 || 0;
+            const contribDiff = contrib2 - contrib1;
+            
+            // 최종 성과금 가져오기
+            const final1 = data1.finalEval[channelId]?.members[memberId] || 0;
+            const final2 = data2.finalEval[channelId]?.members[memberId] || 0;
+            const finalDiff = final2 - final1;
+            
+            // 정수로 표시 (.0 제거)
+            const formatAmount = (amount) => {
+                return amount % 1 === 0 ? amount.toString() : amount.toFixed(1);
+            };
+            
+            html += `
+                <tr>
+                    <td>${memberData.name}</td>
+                    <td>${memberData.teamName}</td>
+                    <td>${mm1}</td>
+                    <td>${mm2}</td>
+                    <td class="${mmDiff >= 0 ? 'positive-change' : 'negative-change'}">
+                        ${mmDiff >= 0 ? '+' : ''}${mmDiff.toFixed(1)}
+                    </td>
+                    <td>${contrib1}%</td>
+                    <td>${contrib2}%</td>
+                    <td class="${contribDiff >= 0 ? 'positive-change' : 'negative-change'}">
+                        ${contribDiff >= 0 ? '+' : ''}${contribDiff}%
+                    </td>
+                    <td>${formatAmount(final1/10000)}만원</td>
+                    <td>${formatAmount(final2/10000)}만원</td>
+                    <td class="${finalDiff >= 0 ? 'positive-change' : 'negative-change'}">
+                        ${finalDiff >= 0 ? '+' : ''}${formatAmount(finalDiff/10000)}만원
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+            </table>
+            </div>
+        `;
+    });
+    
+    area.innerHTML = html;
 }
 </script>
