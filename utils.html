@@ -31,11 +31,21 @@ function loadInitialData() {
             // 각종 선택 옵션 업데이트
             updateAllSelectors();
             
-            // 현재 월 설정
-            const currentMonth = new Date().toISOString().slice(0, 7);
+            // 현재 월과 전월 설정
+            const currentDate = new Date();
+            const currentMonth = currentDate.toISOString().slice(0, 7);
+            
+            // 전월 계산
+            const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
+            const prevMonth = prevDate.toISOString().slice(0, 7);
+            
             document.getElementById('evalMonth').value = currentMonth;
             document.getElementById('evalMonth2nd').value = currentMonth;
             document.getElementById('evalMonthFinal').value = currentMonth;
+            
+            // 전월 비교 기본값 설정
+            document.getElementById('compareMonth1').value = prevMonth;
+            document.getElementById('compareMonth2').value = currentMonth;
             
             // 1차 평가 화면에서 기존 평가 확인 (자동)
             if (document.getElementById('teamleadSelect').value) {
@@ -129,6 +139,8 @@ function switchRole(role) {
         document.getElementById('managerContent').classList.add('active');
     } else if (role === 'executive') {
         document.getElementById('executiveContent').classList.add('active');
+    } else if (role === 'comparison') {
+        document.getElementById('comparisonContent').classList.add('active');
     }
 }
 
