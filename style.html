@@ -1,5 +1,5 @@
 <style>
-    /* ===== 전체 레이아웃 스타일 ===== */
+    /* ===== 전체 레이아웃 스타일 (다크모드) ===== */
     * {
         box-sizing: border-box;
         margin: 0;
@@ -8,9 +8,33 @@
     
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background-color: #f0f2f5;
-        color: #333;
+        background-color: #0f0f0f;
+        color: #f1f1f1;
         line-height: 1.6;
+    }
+    
+    /* 기본 요소들의 색상 보장 */
+    div, p, span, label, strong {
+        color: inherit;
+    }
+    
+    /* 모든 콘텐츠 영역의 텍스트 색상 보장 */
+    .content-area * {
+        color: #f1f1f1;
+    }
+    
+    .content-area input,
+    .content-area select,
+    .content-area textarea {
+        color: #f1f1f1;
+    }
+    
+    /* 인라인 스타일로 배경이 지정된 경우를 위한 추가 보호 */
+    div[style*="background"] p,
+    div[style*="background"] span,
+    div[style*="background"] strong,
+    div[style*="background: #"] {
+        color: #f1f1f1 !important;
     }
     
     .container {
@@ -27,10 +51,10 @@
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 9999;
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        background: #272727;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.7);
     }
     
     .loading.show {
@@ -38,8 +62,8 @@
     }
     
     .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
+        border: 4px solid rgba(255,255,255,0.1);
+        border-top: 4px solid #1a73e8;
         border-radius: 50%;
         width: 40px;
         height: 40px;
@@ -54,56 +78,81 @@
     
     /* ===== 헤더 스타일 ===== */
     .header {
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        background: #272727;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         margin-bottom: 20px;
+        border: 1px solid #3f3f3f;
     }
     
     .header h1 {
-        color: #2c3e50;
-        font-size: 28px;
+        color: #ffffff;
+        font-size: 32px;
         margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
-    /* ===== 역할 선택 버튼 스타일 ===== */
+    .header h1::before {
+        content: '📊';
+        font-size: 28px;
+    }
+    
+    .header p {
+        color: #aaa;
+        font-size: 16px;
+    }
+    
+    /* ===== 역할 선택 버튼 스타일 (유튜브 스타일) ===== */
     .role-selector {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         margin-bottom: 20px;
         flex-wrap: wrap;
     }
     
     .role-btn {
-        padding: 12px 24px;
+        padding: 10px 20px;
         border: none;
-        border-radius: 5px;
-        font-size: 16px;
+        border-radius: 20px;
+        font-size: 15px;
         cursor: pointer;
-        background: #e0e0e0;
-        color: #666;
-        transition: all 0.3s;
-    }
-    
-    .role-btn.active {
-        background: #3498db;
-        color: white;
-        box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+        background: #3f3f3f;
+        color: #f1f1f1;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
     }
     
     .role-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background: #4f4f4f;
     }
+    
+    .role-btn.active {
+        background: #1a73e8;
+        color: white;
+        box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+    }
+    
+    /* 각 역할 버튼 아이콘 */
+    .role-btn:nth-child(1)::before { content: '⚙️'; }
+    .role-btn:nth-child(2)::before { content: '📝'; }
+    .role-btn:nth-child(3)::before { content: '🔄'; }
+    .role-btn:nth-child(4)::before { content: '✅'; }
+    .role-btn:nth-child(5)::before { content: '📈'; }
     
     /* ===== 메인 콘텐츠 영역 스타일 ===== */
     .content-area {
-        background: white;
+        background: #181818;
         padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         min-height: 500px;
+        border: 1px solid #3f3f3f;
     }
     
     .role-content {
@@ -114,24 +163,46 @@
         display: block;
     }
     
+    .role-content h2 {
+        color: #ffffff;
+        margin-bottom: 20px;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .role-content h3 {
+        color: #ffffff;
+        margin-bottom: 15px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
     /* ===== 팀 필터 섹션 ===== */
     .team-filter-section {
-        background: #e3f2fd;
+        background: #212121;
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 20px;
+        border: 1px solid #3f3f3f;
     }
     
     .team-filter-section label {
-        font-weight: bold;
+        font-weight: 500;
         margin-right: 10px;
+        color: #f1f1f1;
     }
     
     .team-filter-section select {
         padding: 8px 15px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
+        border-radius: 4px;
         font-size: 14px;
+        color: #f1f1f1;
     }
     
     /* ===== 선택 박스 스타일 ===== */
@@ -150,29 +221,37 @@
     }
     
     .selector-item label {
-        font-weight: bold;
-        color: #555;
+        font-weight: 500;
+        color: #aaa;
+        font-size: 14px;
     }
     
     .selector-item select, .selector-item input {
         width: 250px;
-        padding: 10px;
-        border: 2px solid #ddd;
-        border-radius: 5px;
-        font-size: 16px;
+        padding: 10px 15px;
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
+        border-radius: 8px;
+        font-size: 15px;
+        color: #f1f1f1;
+    }
+    
+    .selector-item select:focus, .selector-item input:focus {
+        outline: none;
+        border-color: #1a73e8;
     }
     
     /* ===== 평가 정보 박스 ===== */
     .eval-info-box {
-        background: #f0f8ff;
-        border: 2px solid #4169e1;
-        border-radius: 8px;
+        background: #212121;
+        border: 2px solid #1a73e8;
+        border-radius: 12px;
         padding: 20px;
         margin: 20px 0;
     }
     
     .eval-info-box h3 {
-        color: #4169e1;
+        color: #1a73e8;
         margin-bottom: 15px;
     }
     
@@ -183,26 +262,27 @@
     }
     
     .eval-info-label {
-        font-weight: bold;
-        color: #555;
+        font-weight: 500;
+        color: #aaa;
         width: 100px;
     }
     
     .eval-info-value {
-        color: #333;
+        color: #f1f1f1;
     }
     
     /* ===== 관리 섹션 스타일 ===== */
     .management-section {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
+        background: #212121;
+        padding: 25px;
+        border-radius: 12px;
         margin-bottom: 30px;
+        border: 1px solid #3f3f3f;
     }
     
     .management-section h3 {
         margin-bottom: 15px;
-        color: #2c3e50;
+        color: #ffffff;
     }
     
     .management-grid {
@@ -212,15 +292,25 @@
     }
     
     .management-card {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        background: #272727;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        border: 1px solid #3f3f3f;
+        transition: transform 0.2s;
+    }
+    
+    .management-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     
     .management-card h4 {
         margin-bottom: 15px;
-        color: #34495e;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
     .form-group {
@@ -231,23 +321,32 @@
         display: block;
         margin-bottom: 5px;
         font-weight: 500;
-        color: #555;
+        color: #aaa;
+        font-size: 14px;
     }
     
     .form-group input, .form-group select {
         width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
+        padding: 10px;
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
         border-radius: 4px;
         font-size: 14px;
+        color: #f1f1f1;
+    }
+    
+    .form-group input:focus, .form-group select:focus {
+        outline: none;
+        border-color: #1a73e8;
     }
     
     /* ===== 채널 평가 섹션 ===== */
     .channel-evaluation-section {
-        border: 2px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 20px;
+        border: 1px solid #3f3f3f;
+        border-radius: 12px;
+        padding: 25px;
         margin-bottom: 30px;
+        background: #212121;
     }
     
     .channel-checkbox-area {
@@ -260,18 +359,23 @@
     .channel-checkbox-item {
         display: flex;
         align-items: center;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 5px;
-        transition: background 0.2s;
+        padding: 12px;
+        background: #272727;
+        border-radius: 8px;
+        transition: all 0.2s;
+        border: 1px solid #3f3f3f;
     }
     
     .channel-checkbox-item:hover {
-        background: #e3f2fd;
+        background: #3f3f3f;
+        transform: translateX(4px);
     }
     
     .channel-checkbox-item input[type="checkbox"] {
         margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        accent-color: #1a73e8;
     }
     
     /* ===== 테이블 스타일 ===== */
@@ -279,31 +383,35 @@
         width: 100%;
         border-collapse: collapse;
         margin-top: 20px;
+        overflow: hidden;
+        border-radius: 8px;
     }
     
     .evaluation-table th {
-        background: #34495e;
+        background: #1a73e8;
         color: white;
         padding: 12px;
         text-align: left;
-        font-weight: normal;
+        font-weight: 500;
         white-space: nowrap;
     }
     
     .evaluation-table td {
         padding: 12px;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid #3f3f3f;
+        background: #272727;
     }
     
-    .evaluation-table tr:hover {
-        background: #f8f9fa;
+    .evaluation-table tr:hover td {
+        background: #2f2f2f;
     }
     
     /* ===== 읽기 전용 모드 스타일 ===== */
     .readonly-mode input:disabled,
     .readonly-mode textarea:disabled {
-        background: #f5f5f5;
+        background: #1a1a1a;
         cursor: not-allowed;
+        opacity: 0.6;
     }
     
     .readonly-mode .detail-btn:disabled {
@@ -315,27 +423,32 @@
     .member-checkbox-list {
         max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 1px solid #3f3f3f;
+        border-radius: 8px;
         padding: 10px;
-        background: #f8f9fa;
+        background: #0f0f0f;
     }
     
     .member-checkbox-item {
         display: flex;
         align-items: center;
-        padding: 8px;
-        border-radius: 4px;
+        padding: 10px;
+        border-radius: 6px;
         margin-bottom: 5px;
-        background: white;
+        background: #272727;
+        transition: all 0.2s;
     }
     
     .member-checkbox-item:hover {
-        background: #e3f2fd;
+        background: #3f3f3f;
+        transform: translateX(4px);
     }
     
     .member-checkbox-item input[type="checkbox"] {
         margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        accent-color: #1a73e8;
     }
     
     .member-checkbox-item label {
@@ -343,69 +456,120 @@
         cursor: pointer;
         display: flex;
         justify-content: space-between;
+        color: #f1f1f1;
     }
     
     .member-team-badge {
-        background: #e0e0e0;
+        background: #1a73e8;
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 12px;
-        color: #555;
+        color: white;
+        font-weight: 500;
+    }
+    
+    /* ===== 멤버 관리 섹션 스타일 ===== */
+    .member-management-section {
+        background: #272727;
+        border: 1px solid #4285f4;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    
+    .member-management-section h5 {
+        color: #4285f4;
+        margin-bottom: 15px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
     /* ===== 입력 필드 스타일 ===== */
-    input[type="number"], input[type="text"], input[type="month"] {
+    input[type="number"], input[type="text"], input[type="month"], textarea {
         width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
+        padding: 8px 12px;
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
         border-radius: 4px;
         font-size: 14px;
+        color: #f1f1f1;
     }
     
-    input[type="number"]:focus, input[type="text"]:focus {
+    input[type="number"]:focus, input[type="text"]:focus, textarea:focus {
         outline: none;
-        border-color: #3498db;
+        border-color: #1a73e8;
     }
     
     /* ===== 상세정보 버튼 스타일 ===== */
     .detail-btn {
-        background: #3498db;
+        background: #1a73e8;
         color: white;
         border: none;
         border-radius: 50%;
-        width: 25px;
-        height: 25px;
+        width: 30px;
+        height: 30px;
         cursor: pointer;
         font-size: 18px;
         line-height: 1;
+        transition: all 0.2s;
     }
     
     .detail-btn:hover {
-        background: #2980b9;
+        background: #1557b0;
+        transform: scale(1.1);
     }
     
     /* ===== 상세정보 패널 스타일 ===== */
     .detail-panel {
         display: none;
-        background: #f8f9fa;
-        padding: 15px;
+        background: #1a1a1a;
+        padding: 20px;
         margin-top: 10px;
-        border-radius: 5px;
-        border-left: 4px solid #3498db;
+        border-radius: 8px;
+        border-left: 4px solid #1a73e8;
+        color: #f1f1f1 !important;
     }
     
     .detail-panel.show {
         display: block;
     }
     
+    .detail-panel strong {
+        color: #1a73e8;
+        display: block;
+        margin-bottom: 8px;
+    }
+    
+    .detail-panel p,
+    .detail-panel div {
+        background: #272727;
+        color: #f1f1f1 !important;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 5px;
+    }
+    
+    /* 인라인 스타일 오버라이드 */
+    .detail-panel * {
+        color: #f1f1f1 !important;
+    }
+    
+    .detail-panel strong {
+        color: #4285f4 !important;
+    }
+    
     .detail-panel textarea {
         width: 100%;
         min-height: 100px;
         padding: 10px;
-        border: 1px solid #ddd;
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
         border-radius: 4px;
         resize: vertical;
         margin-top: 10px;
+        color: #f1f1f1;
     }
     
     /* ===== 성과 리스트 ===== */
@@ -431,198 +595,246 @@
     
     .progress-bar {
         width: 100%;
-        height: 30px;
-        background: #ecf0f1;
-        border-radius: 15px;
+        height: 8px;
+        background: #3f3f3f;
+        border-radius: 4px;
         overflow: hidden;
         position: relative;
     }
     
     .progress-fill {
         height: 100%;
-        background: linear-gradient(to right, #3498db, #2ecc71);
+        background: #1a73e8;
         transition: width 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: bold;
+        font-weight: 500;
+        font-size: 12px;
+        min-width: 40px;
     }
     
     /* ===== 요약 정보 스타일 ===== */
     .summary-box {
-        background: #ecf0f1;
-        padding: 20px;
-        border-radius: 8px;
+        background: #212121;
+        padding: 25px;
+        border-radius: 12px;
         margin: 20px 0;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .summary-box h4 {
+        color: #ffffff;
+        margin-bottom: 15px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
     .summary-item {
         display: flex;
-        justify-content: space-between;
+        align-items: center;
         margin-bottom: 10px;
+        gap: 15px;
     }
     
     .summary-label {
-        font-weight: bold;
-        color: #555;
+        font-weight: 500;
+        color: #aaa;
+        min-width: 120px;
     }
     
     .summary-value {
-        color: #2c3e50;
-        font-weight: bold;
+        color: #ffffff;
+        font-weight: 600;
     }
     
-    /* ===== 버튼 스타일 ===== */
+    /* ===== 버튼 스타일 (유튜브 스타일) ===== */
     .btn {
         padding: 10px 20px;
         border: none;
-        border-radius: 5px;
+        border-radius: 20px;
         font-size: 14px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.2s;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
     
     .btn-primary {
-        background: #3498db;
+        background: #065fd4;
         color: white;
     }
     
     .btn-primary:hover {
-        background: #2980b9;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background: #0556c3;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(6, 95, 212, 0.3);
     }
     
     .btn-success {
-        background: #27ae60;
+        background: #2ba640;
         color: white;
     }
     
     .btn-success:hover {
-        background: #229954;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background: #259434;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(43, 166, 64, 0.3);
     }
     
     .btn-danger {
-        background: #e74c3c;
+        background: #cc0000;
         color: white;
     }
     
     .btn-danger:hover {
-        background: #c0392b;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background: #aa0000;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(204, 0, 0, 0.3);
     }
     
     .btn-warning {
-        background: #f39c12;
+        background: #ff6600;
         color: white;
     }
     
     .btn-warning:hover {
-        background: #e67e22;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background: #e55a00;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(255, 102, 0, 0.3);
     }
     
     .submit-btn {
-        background: #27ae60;
+        background: #1a73e8;
         color: white;
         border: none;
-        padding: 15px 40px;
-        font-size: 18px;
-        border-radius: 5px;
+        padding: 12px 40px;
+        font-size: 16px;
+        border-radius: 24px;
         cursor: pointer;
         margin-top: 30px;
         display: block;
         margin-left: auto;
         margin-right: auto;
+        font-weight: 600;
+        transition: all 0.2s;
     }
     
     .submit-btn:hover {
-        background: #229954;
+        background: #1557b0;
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4);
     }
     
     /* ===== 리스트 스타일 ===== */
     .item-list {
         max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 1px solid #3f3f3f;
+        border-radius: 8px;
         padding: 10px;
         margin-top: 10px;
+        background: #0f0f0f;
     }
     
     .list-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px;
-        background: white;
-        border-radius: 4px;
+        padding: 10px;
+        background: #272727;
+        border-radius: 6px;
         margin-bottom: 5px;
+        transition: all 0.2s;
     }
     
     .list-item:hover {
-        background: #f8f9fa;
+        background: #3f3f3f;
+        transform: translateX(4px);
     }
     
     /* ===== 알림 메시지 스타일 ===== */
     .alert {
-        padding: 15px;
+        padding: 15px 20px;
         margin: 20px 0;
-        border-radius: 5px;
+        border-radius: 8px;
         display: none;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
     .alert.success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+        background: #1d3c1d;
+        color: #4ade80;
+        border: 1px solid #2ba640;
+    }
+    
+    .alert.success::before {
+        content: '✅';
     }
     
     .alert.error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+        background: #3c1d1d;
+        color: #f87171;
+        border: 1px solid #dc2626;
+    }
+    
+    .alert.error::before {
+        content: '❌';
     }
     
     .alert.warning {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
+        background: #3c2e1d;
+        color: #fbbf24;
+        border: 1px solid #f59e0b;
+    }
+    
+    .alert.warning::before {
+        content: '⚠️';
     }
     
     /* ===== 금액 표시 스타일 ===== */
     .amount {
-        font-weight: bold;
-        color: #27ae60;
+        font-weight: 600;
+        color: #4ade80;
     }
     
     .percentage {
-        color: #3498db;
-        font-weight: bold;
+        color: #60a5fa;
+        font-weight: 600;
     }
     
     /* ===== 채널 정보 카드 ===== */
     .channel-info-card {
-        background: #e3f2fd;
-        padding: 15px;
-        border-radius: 8px;
+        background: #272727;
+        padding: 20px;
+        border-radius: 12px;
         margin-bottom: 20px;
+        border: 1px solid #3f3f3f;
     }
     
     .channel-info-card h4 {
         margin: 0 0 10px 0;
-        color: #1976d2;
+        color: #ffffff;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .channel-info-card h4::before {
+        content: '📺';
     }
     
     .channel-members-count {
-        color: #555;
+        color: #aaa;
         font-size: 14px;
     }
     
@@ -630,5 +842,184 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 20px;
+    }
+    
+    /* ===== 전월 비교 스타일 ===== */
+    .channel-comparison-section {
+        background: #212121;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .channel-comparison-section h4 {
+        color: #ffffff;
+        margin-bottom: 15px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .channel-comparison-section h4::before {
+        content: '📊';
+    }
+    
+    .comparison-box {
+        background: #272727;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .comparison-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .comparison-item span {
+        flex: 1;
+        text-align: center;
+        color: #f1f1f1;
+    }
+    
+    .comparison-item span:first-child {
+        text-align: left;
+        font-weight: 600;
+        color: #aaa;
+    }
+    
+    .positive-change {
+        color: #4ade80;
+        font-weight: 600;
+    }
+    
+    .negative-change {
+        color: #f87171;
+        font-weight: 600;
+    }
+    
+    .comparison-summary {
+        background: #272727;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .comparison-summary .summary-item {
+        font-size: 18px;
+    }
+    
+    /* ===== 채널 코멘트 스타일 ===== */
+    .channel-comment-section {
+        background: #272727;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid #4285f4;
+    }
+    
+    .channel-comment-section label {
+        color: #4285f4;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .channel-comment-section textarea {
+        background: #0f0f0f;
+        border: 1px solid #3f3f3f;
+        border-radius: 4px;
+        padding: 10px;
+        font-size: 14px;
+        resize: vertical;
+        color: #f1f1f1;
+    }
+    
+    .channel-comment-section textarea:focus {
+        outline: none;
+        border-color: #4285f4;
+    }
+    
+    /* ===== 스크롤바 스타일 ===== */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #0f0f0f;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #3f3f3f;
+        border-radius: 5px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #4f4f4f;
+    }
+    
+    /* ===== 유튜브 스타일 추가 효과 ===== */
+    .channel-info-card,
+    .summary-box,
+    .management-card {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .channel-info-card::before,
+    .summary-box::before,
+    .management-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #1a73e8, transparent);
+        transition: left 0.5s;
+    }
+    
+    .channel-info-card:hover::before,
+    .summary-box:hover::before,
+    .management-card:hover::before {
+        left: 100%;
+    }
+    
+    /* 포커스 효과 */
+    input:focus,
+    select:focus,
+    textarea:focus {
+        box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+    }
+    
+    /* 로딩 텍스트 애니메이션 */
+    .loading p {
+        color: #aaa;
+    }
+    
+    /* ===== 채널 상세정보 박스 전용 스타일 ===== */
+    .channel-detail-box {
+        background: #1a1a1a !important;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        color: #f1f1f1 !important;
+    }
+    
+    .channel-detail-box p,
+    .channel-detail-box strong,
+    .channel-detail-box span {
+        color: #f1f1f1 !important;
+    }
+    
+    .channel-detail-box strong {
+        color: #4285f4 !important;
     }
 </style>
