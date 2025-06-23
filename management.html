@@ -19,7 +19,7 @@ function updateMemberList(teamFilter = '') {
         item.className = 'list-item';
         item.innerHTML = `
             <span>${member.name} (${evaluationData.teams[member.teamId].name})</span>
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">삭제</button>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">🗑️ 삭제</button>
         `;
         listDiv.appendChild(item);
     });
@@ -38,7 +38,7 @@ function updateChannelList(teamFilter = '') {
         item.className = 'list-item';
         item.innerHTML = `
             <span>${channel.name} (${evaluationData.teams[channel.teamId].name})</span>
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteChannel('${channel.id}')">삭제</button>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteChannel('${channel.id}')">🗑️ 삭제</button>
         `;
         listDiv.appendChild(item);
     });
