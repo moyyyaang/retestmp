@@ -1,0 +1,634 @@
+<style>
+    /* ===== 전체 레이아웃 스타일 ===== */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background-color: #f0f2f5;
+        color: #333;
+        line-height: 1.6;
+    }
+    
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    /* ===== 로딩 스피너 스타일 ===== */
+    .loading {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* ===== 헤더 스타일 ===== */
+    .header {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .header h1 {
+        color: #2c3e50;
+        font-size: 28px;
+        margin-bottom: 10px;
+    }
+    
+    /* ===== 역할 선택 버튼 스타일 ===== */
+    .role-selector {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .role-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #e0e0e0;
+        color: #666;
+        transition: all 0.3s;
+    }
+    
+    .role-btn.active {
+        background: #3498db;
+        color: white;
+        box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+    }
+    
+    .role-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* ===== 메인 콘텐츠 영역 스타일 ===== */
+    .content-area {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        min-height: 500px;
+    }
+    
+    .role-content {
+        display: none;
+    }
+    
+    .role-content.active {
+        display: block;
+    }
+    
+    /* ===== 팀 필터 섹션 ===== */
+    .team-filter-section {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .team-filter-section label {
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .team-filter-section select {
+        padding: 8px 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+    
+    /* ===== 선택 박스 스타일 ===== */
+    .selector-group {
+        margin-bottom: 30px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .selector-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .selector-item label {
+        font-weight: bold;
+        color: #555;
+    }
+    
+    .selector-item select, .selector-item input {
+        width: 250px;
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+    
+    /* ===== 평가 정보 박스 ===== */
+    .eval-info-box {
+        background: #f0f8ff;
+        border: 2px solid #4169e1;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .eval-info-box h3 {
+        color: #4169e1;
+        margin-bottom: 15px;
+    }
+    
+    .eval-info-item {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .eval-info-label {
+        font-weight: bold;
+        color: #555;
+        width: 100px;
+    }
+    
+    .eval-info-value {
+        color: #333;
+    }
+    
+    /* ===== 관리 섹션 스타일 ===== */
+    .management-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+    
+    .management-section h3 {
+        margin-bottom: 15px;
+        color: #2c3e50;
+    }
+    
+    .management-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+    }
+    
+    .management-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .management-card h4 {
+        margin-bottom: 15px;
+        color: #34495e;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #555;
+    }
+    
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    /* ===== 채널 평가 섹션 ===== */
+    .channel-evaluation-section {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .channel-checkbox-area {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 10px;
+        margin: 20px 0;
+    }
+    
+    .channel-checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        transition: background 0.2s;
+    }
+    
+    .channel-checkbox-item:hover {
+        background: #e3f2fd;
+    }
+    
+    .channel-checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    
+    /* ===== 테이블 스타일 ===== */
+    .evaluation-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .evaluation-table th {
+        background: #34495e;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: normal;
+        white-space: nowrap;
+    }
+    
+    .evaluation-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .evaluation-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    /* ===== 읽기 전용 모드 스타일 ===== */
+    .readonly-mode input:disabled,
+    .readonly-mode textarea:disabled {
+        background: #f5f5f5;
+        cursor: not-allowed;
+    }
+    
+    .readonly-mode .detail-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* ===== 멤버 선택 체크박스 스타일 ===== */
+    .member-checkbox-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background: #f8f9fa;
+    }
+    
+    .member-checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        background: white;
+    }
+    
+    .member-checkbox-item:hover {
+        background: #e3f2fd;
+    }
+    
+    .member-checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    
+    .member-checkbox-item label {
+        flex: 1;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .member-team-badge {
+        background: #e0e0e0;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #555;
+    }
+    
+    /* ===== 입력 필드 스타일 ===== */
+    input[type="number"], input[type="text"], input[type="month"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    input[type="number"]:focus, input[type="text"]:focus {
+        outline: none;
+        border-color: #3498db;
+    }
+    
+    /* ===== 상세정보 버튼 스타일 ===== */
+    .detail-btn {
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+    }
+    
+    .detail-btn:hover {
+        background: #2980b9;
+    }
+    
+    /* ===== 상세정보 패널 스타일 ===== */
+    .detail-panel {
+        display: none;
+        background: #f8f9fa;
+        padding: 15px;
+        margin-top: 10px;
+        border-radius: 5px;
+        border-left: 4px solid #3498db;
+    }
+    
+    .detail-panel.show {
+        display: block;
+    }
+    
+    .detail-panel textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        resize: vertical;
+        margin-top: 10px;
+    }
+    
+    /* ===== 성과 리스트 ===== */
+    .achievements-list {
+        margin-top: 10px;
+    }
+    
+    .achievement-item {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+    
+    .achievement-item input {
+        flex: 1;
+    }
+    
+    /* ===== 진행률 바 스타일 ===== */
+    .progress-container {
+        margin: 20px 0;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 30px;
+        background: #ecf0f1;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(to right, #3498db, #2ecc71);
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    /* ===== 요약 정보 스타일 ===== */
+    .summary-box {
+        background: #ecf0f1;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    
+    .summary-label {
+        font-weight: bold;
+        color: #555;
+    }
+    
+    .summary-value {
+        color: #2c3e50;
+        font-weight: bold;
+    }
+    
+    /* ===== 버튼 스타일 ===== */
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #2980b9;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .btn-success {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #229954;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .btn-warning {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #e67e22;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .submit-btn {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 18px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 30px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .submit-btn:hover {
+        background: #229954;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* ===== 리스트 스타일 ===== */
+    .item-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+    
+    .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        margin-bottom: 5px;
+    }
+    
+    .list-item:hover {
+        background: #f8f9fa;
+    }
+    
+    /* ===== 알림 메시지 스타일 ===== */
+    .alert {
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+        display: none;
+    }
+    
+    .alert.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .alert.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .alert.warning {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    /* ===== 금액 표시 스타일 ===== */
+    .amount {
+        font-weight: bold;
+        color: #27ae60;
+    }
+    
+    .percentage {
+        color: #3498db;
+        font-weight: bold;
+    }
+    
+    /* ===== 채널 정보 카드 ===== */
+    .channel-info-card {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .channel-info-card h4 {
+        margin: 0 0 10px 0;
+        color: #1976d2;
+    }
+    
+    .channel-members-count {
+        color: #555;
+        font-size: 14px;
+    }
+    
+    .channel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
