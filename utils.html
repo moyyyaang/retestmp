@@ -1,0 +1,166 @@
+<script>
+// ===== 전역 데이터 저장소 =====
+let evaluationData = {
+    teams: {},
+    members: [],
+    channels: [],
+    teamleads: [],
+    firstEvaluation: {},
+    secondEvaluation: {},
+    finalEvaluation: {},
+    currentChannels: {},
+    currentChannelMembers: [],
+    existingEvaluations: {},
+    selectedChannels: [],
+    evaluationMode: 'new', // 'new', 'view', 'edit'
+    currentEvalMonth: '',
+    currentTeamleadId: '',
+    currentEvalInfo: null
+};
+
+// ===== 초기 데이터 로드 =====
+function loadInitialData() {
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            evaluationData.teams = data.teams;
+            evaluationData.members = data.members;
+            evaluationData.channels = data.channels;
+            evaluationData.teamleads = data.teamleads;
+            
+            // 각종 선택 옵션 업데이트
+            updateAllSelectors();
+            
+            // 현재 월 설정
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            document.getElementById('evalMonth').value = currentMonth;
+            document.getElementById('evalMonth2nd').value = currentMonth;
+            document.getElementById('evalMonthFinal').value = currentMonth;
+            
+            // 1차 평가 화면에서 기존 평가 확인 (자동)
+            if (document.getElementById('teamleadSelect').value) {
+                checkExistingEvaluation();
+            }
+            
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getInitialData();
+}
+
+// ===== 선택 옵션 업데이트 =====
+function updateAllSelectors() {
+    // 팀 선택 옵션 업데이트
+    const teamSelects = ['newMemberTeam', 'newChannelTeam'];
+    teamSelects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.innerHTML = '<option value="">팀 선택</option>';
+            for (const teamId in evaluationData.teams) {
+                const option = document.createElement('option');
+                option.value = teamId;
+                option.textContent = evaluationData.teams[teamId].name;
+                select.appendChild(option);
+            }
+        }
+    });
+    
+    // 팀장 선택 옵션 업데이트
+    const teamleadSelect = document.getElementById('teamleadSelect');
+    if (teamleadSelect) {
+        teamleadSelect.innerHTML = '<option value="">팀장을 선택하세요</option>';
+        evaluationData.teamleads.forEach(teamlead => {
+            const option = document.createElement('option');
+            option.value = teamlead.id;
+            option.textContent = `${teamlead.name} (${evaluationData.teams[teamlead.teamId].name})`;
+            teamleadSelect.appendChild(option);
+        });
+    }
+    
+    // 채널 선택 옵션 업데이트
+    updateChannelSelectors();
+    
+    // 관리 화면 리스트 업데이트
+    updateMemberList();
+    updateChannelList();
+}
+
+function updateChannelSelectors() {
+    const select = document.getElementById('channelForMemberAssignment');
+    if (select) {
+        select.innerHTML = '<option value="">채널을 선택하세요</option>';
+        evaluationData.channels.forEach(channel => {
+            const option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = `${channel.name} (${evaluationData.teams[channel.teamId].name})`;
+            select.appendChild(option);
+        });
+    }
+}
+
+// ===== 로딩 표시 =====
+function showLoading(show) {
+    const loading = document.getElementById('loadingSpinner');
+    if (show) {
+        loading.classList.add('show');
+    } else {
+        loading.classList.remove('show');
+    }
+}
+
+// ===== 역할 전환 함수 =====
+function switchRole(role) {
+    // 모든 역할 버튼과 콘텐츠 비활성화
+    document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
+    
+    // 선택된 역할 활성화
+    event.target.classList.add('active');
+    
+    // 해당 역할의 콘텐츠 표시
+    if (role === 'management') {
+        document.getElementById('managementContent').classList.add('active');
+    } else if (role === 'teamlead') {
+        document.getElementById('teamleadContent').classList.add('active');
+    } else if (role === 'manager') {
+        document.getElementById('managerContent').classList.add('active');
+    } else if (role === 'executive') {
+        document.getElementById('executiveContent').classList.add('active');
+    }
+}
+
+// ===== 유틸리티 함수 =====
+function showAlert(message, type) {
+    const alertBox = document.getElementById('alertBox');
+    alertBox.textContent = message;
+    alertBox.className = `alert ${type}`;
+    alertBox.style.display = 'block';
+    
+    setTimeout(() => {
+        alertBox.style.display = 'none';
+    }, 5000);
+}
+
+// ===== 디버깅 함수 =====
+function checkDataStatus() {
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(status) {
+            console.log('=== 데이터 상태 ===');
+            for (const sheet in status) {
+                console.log(`${sheet}: ${status[sheet].rows}행`);
+                console.log('샘플 데이터:', status[sheet].sample);
+            }
+            showLoading(false);
+            showAlert('콘솔에서 데이터 상태를 확인하세요.', 'success');
+        })
+        .withFailureHandler(function(error) {
+            showAlert('상태 확인 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .checkDataStatus();
+}
+</script>
