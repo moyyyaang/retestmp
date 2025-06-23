@@ -111,17 +111,18 @@ function initializeSheets() {
     evalInfoSheet.getRange(1, 1, 1, 6).setValues([['평가ID', '평가월', '팀장ID', '팀장명', '평가단계', '최종수정일시']]);
   }
   
-  // 평가 시트들
+  // 1차 평가 시트 - 채널 코멘트 컬럼 추가
   let firstEvalSheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
   if (!firstEvalSheet) {
     firstEvalSheet = ss.insertSheet(SHEET_NAMES.FIRST_EVAL);
-    firstEvalSheet.getRange(1, 1, 1, 11).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '투입MM', '1차기여도', '핵심성과', '1차코멘트', '평가자ID']]);
+    firstEvalSheet.getRange(1, 1, 1, 12).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '투입MM', '1차기여도', '핵심성과', '1차코멘트', '평가자ID', '채널코멘트']]);
   }
   
+  // 2차 평가 시트 - 채널 코멘트 컬럼 추가
   let secondEvalSheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
   if (!secondEvalSheet) {
     secondEvalSheet = ss.insertSheet(SHEET_NAMES.SECOND_EVAL);
-    secondEvalSheet.getRange(1, 1, 1, 12).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '투입MM', '1차기여도', '2차기여도', '핵심성과', '1차코멘트', '2차코멘트']]);
+    secondEvalSheet.getRange(1, 1, 1, 13).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '투입MM', '1차기여도', '2차기여도', '핵심성과', '1차코멘트', '2차코멘트', '채널코멘트']]);
   }
   
   let finalEvalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
@@ -272,20 +273,71 @@ function getChannelMembersData(channelId) {
   }
 }
 
+// ===== 팀원 추가/제거 함수 =====
+function addMemberToChannel(channelId, memberId) {
+  try {
+    const mapSheet = ss.getSheetByName(SHEET_NAMES.MEMBER_CHANNEL_MAP);
+    const data = mapSheet.getDataRange().getValues();
+    
+    // 이미 있는지 확인
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === memberId && data[i][1] === channelId) {
+        if (data[i][2] === 'N') {
+          // 비활성화된 매핑이면 활성화
+          mapSheet.getRange(i + 1, 3).setValue('Y');
+          return { success: true, message: '팀원이 추가되었습니다.' };
+        } else {
+          return { success: false, message: '이미 추가된 팀원입니다.' };
+        }
+      }
+    }
+    
+    // 새로 추가
+    mapSheet.appendRow([memberId, channelId, 'Y']);
+    return { success: true, message: '팀원이 추가되었습니다.' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function removeMemberFromChannel(channelId, memberId) {
+  try {
+    const mapSheet = ss.getSheetByName(SHEET_NAMES.MEMBER_CHANNEL_MAP);
+    const data = mapSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === memberId && data[i][1] === channelId && data[i][2] === 'Y') {
+        mapSheet.getRange(i + 1, 3).setValue('N');
+        return { success: true, message: '팀원이 제거되었습니다.' };
+      }
+    }
+    
+    return { success: false, message: '해당 팀원을 찾을 수 없습니다.' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ===== 팀별 멤버 조회 =====
+function getTeamMembersData(teamId) {
+  try {
+    const members = getMembersData();
+    return members.filter(m => m.teamId === teamId);
+  } catch (error) {
+    console.error('팀 멤버 조회 오류:', error);
+    return [];
+  }
+}
+
 // ===== 평가 정보 관리 =====
 function getEvaluationInfo(evalMonth, teamleadId) {
   try {
     const sheet = ss.getSheetByName(SHEET_NAMES.EVAL_INFO);
     const data = sheet.getDataRange().getValues();
     
-    // 날짜 형식 통일
     const evalMonthStr = String(evalMonth);
     
-    console.log('평가정보 조회 - 월:', evalMonthStr, '팀장:', teamleadId); // 디버깅용
-    
     for (let i = data.length - 1; i > 0; i--) {
-      console.log('비교:', String(data[i][1]), '===', evalMonthStr, '&&', data[i][2], '===', teamleadId); // 디버깅용
-      
       if (String(data[i][1]) === evalMonthStr && data[i][2] === teamleadId) {
         return {
           evalId: data[i][0],
@@ -298,7 +350,6 @@ function getEvaluationInfo(evalMonth, teamleadId) {
       }
     }
     
-    console.log('평가정보 없음'); // 디버깅용
     return null;
   } catch (error) {
     console.error('평가 정보 조회 오류:', error);
@@ -312,7 +363,6 @@ function saveEvaluationInfo(evalMonth, teamleadId, teamleadName, evalStage) {
     const timestamp = new Date().toLocaleString('ko-KR');
     const evalId = 'EV' + new Date().getTime();
     
-    // 날짜 형식 통일
     const evalMonthStr = String(evalMonth);
     
     const data = sheet.getDataRange().getValues();
@@ -344,13 +394,13 @@ function getExistingFirstEvaluation(channelId, evalMonth) {
     const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
     const data = sheet.getDataRange().getValues();
     
-    // 날짜 형식 통일
     const evalMonthStr = String(evalMonth);
     
     const evaluations = {};
+    let channelComment = '';
     
     for (let i = 1; i < data.length; i++) {
-      const [month, chId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1] = data[i];
+      const [month, chId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId, chComment] = data[i];
       
       if (String(month) === evalMonthStr && chId === channelId) {
         evaluations[memberId] = {
@@ -359,9 +409,15 @@ function getExistingFirstEvaluation(channelId, evalMonth) {
           achievement: achievement,
           comment1: comment1
         };
+        
+        // 채널 코멘트 저장 (첫 번째 행에서만)
+        if (!channelComment && chComment) {
+          channelComment = chComment;
+        }
       }
     }
     
+    evaluations.channelComment = channelComment;
     return evaluations;
   } catch (error) {
     console.error('기존 평가 데이터 가져오기 오류:', error);
@@ -502,9 +558,9 @@ function saveFirstEvaluation(evaluationData) {
   try {
     const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
     
-    console.log('1차 평가 저장 시작:', evaluationData); // 디버깅용
+    console.log('1차 평가 저장 시작:', evaluationData);
     
-    // 기존 데이터 삭제 (같은 월, 같은 채널, 같은 평가자)
+    // 기존 데이터 삭제
     const existingData = sheet.getDataRange().getValues();
     for (let i = existingData.length - 1; i > 0; i--) {
       if (String(existingData[i][0]) === String(evaluationData.evalMonth) && 
@@ -518,7 +574,7 @@ function saveFirstEvaluation(evaluationData) {
     const newRows = [];
     evaluationData.members.forEach(member => {
       newRows.push([
-        String(evaluationData.evalMonth), // 문자열로 저장
+        String(evaluationData.evalMonth),
         evaluationData.channelId,
         evaluationData.channelName,
         member.id,
@@ -528,13 +584,14 @@ function saveFirstEvaluation(evaluationData) {
         member.contribution1,
         member.achievement,
         member.comment1,
-        evaluationData.evaluatorId
+        evaluationData.evaluatorId,
+        evaluationData.channelComment || '' // 채널 코멘트 추가
       ]);
     });
     
     if (newRows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 11).setValues(newRows);
-      console.log('저장된 행 수:', newRows.length); // 디버깅용
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 12).setValues(newRows);
+      console.log('저장된 행 수:', newRows.length);
     }
     
     return { success: true, message: '1차 평가가 저장되었습니다.' };
@@ -554,28 +611,24 @@ function getFirstEvaluationData(evalMonth = null) {
     }
     
     const data = sheet.getDataRange().getValues();
-    // evalMonth가 없으면 현재 월 사용
     const targetMonth = evalMonth || new Date().toISOString().slice(0, 7);
     
-    console.log('1차 평가 조회 - 대상월:', targetMonth); // 디버깅용
-    console.log('전체 데이터 행 수:', data.length); // 디버깅용
+    console.log('1차 평가 조회 - 대상월:', targetMonth);
     
     const evaluations = {};
     
     for (let i = 1; i < data.length; i++) {
-      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1] = data[i];
+      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId, channelComment] = data[i];
       
-      // 날짜 형식 통일 (문자열로 변환)
       const monthStr = String(month);
       const targetMonthStr = String(targetMonth);
-      
-      console.log(`행 ${i}: 저장된 월=${monthStr}, 찾는 월=${targetMonthStr}`); // 디버깅용
       
       if (monthStr === targetMonthStr) {
         if (!evaluations[channelId]) {
           evaluations[channelId] = {
             channelId: channelId,
             channelName: channelName,
+            channelComment: channelComment || '', // 채널 코멘트 추가
             members: []
           };
         }
@@ -592,7 +645,7 @@ function getFirstEvaluationData(evalMonth = null) {
       }
     }
     
-    console.log('1차 평가 결과:', JSON.stringify(evaluations)); // 디버깅용
+    console.log('1차 평가 결과:', JSON.stringify(evaluations));
     return evaluations;
   } catch (error) {
     console.error('1차 평가 데이터 가져오기 오류:', error);
@@ -607,18 +660,19 @@ function getSecondEvaluationData(evalMonth = null) {
     const data = sheet.getDataRange().getValues();
     const targetMonth = String(evalMonth || new Date().toISOString().slice(0, 7));
     
-    console.log('2차 평가 조회 - 대상월:', targetMonth); // 디버깅용
+    console.log('2차 평가 조회 - 대상월:', targetMonth);
     
     const evaluations = {};
     
     for (let i = 1; i < data.length; i++) {
-      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, contribution2, achievement, comment1, comment2] = data[i];
+      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, contribution2, achievement, comment1, comment2, channelComment] = data[i];
       
       if (String(month) === targetMonth) {
         if (!evaluations[channelId]) {
           evaluations[channelId] = {
             channelId: channelId,
             channelName: channelName,
+            channelComment: channelComment || '', // 채널 코멘트 추가
             members: []
           };
         }
@@ -637,10 +691,25 @@ function getSecondEvaluationData(evalMonth = null) {
       }
     }
     
-    console.log('2차 평가 결과:', evaluations); // 디버깅용
+    console.log('2차 평가 결과:', evaluations);
     return evaluations;
   } catch (error) {
     console.error('2차 평가 데이터 가져오기 오류:', error);
+    return {};
+  }
+}
+
+// ===== 3차 평가용 통합 데이터 조회 =====
+function getFinalEvaluationDetailData(evalMonth) {
+  try {
+    const targetMonth = String(evalMonth || new Date().toISOString().slice(0, 7));
+    
+    // 2차 평가 데이터 가져오기
+    const secondEval = getSecondEvaluationData(targetMonth);
+    
+    return secondEval;
+  } catch (error) {
+    console.error('최종 평가 상세 데이터 조회 오류:', error);
     return {};
   }
 }
@@ -655,14 +724,13 @@ function checkDataStatus() {
     const data = sheet.getDataRange().getValues();
     result[sheetName] = {
       rows: data.length,
-      sample: data.slice(0, 3) // 처음 3행만
+      sample: data.slice(0, 3)
     };
   });
   
   return result;
 }
 
-// 디버깅용 - 특정 월의 1차 평가 데이터 확인
 function debugFirstEvaluation(evalMonth) {
   const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
   const data = sheet.getDataRange().getValues();
@@ -682,7 +750,8 @@ function debugFirstEvaluation(evalMonth) {
         month: month,
         channelId: data[i][1],
         channelName: data[i][2],
-        memberName: data[i][4]
+        memberName: data[i][4],
+        channelComment: data[i][11] || ''
       });
     }
   }
@@ -696,14 +765,13 @@ function getFirstEvaluationByTeamlead(evalMonth, teamleadId) {
     const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
     const data = sheet.getDataRange().getValues();
     
-    // 날짜 형식 통일
     const evalMonthStr = String(evalMonth);
     
     const evaluations = {};
     const channelSet = new Set();
     
     for (let i = 1; i < data.length; i++) {
-      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId] = data[i];
+      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId, channelComment] = data[i];
       
       if (String(month) === evalMonthStr && evaluatorId === teamleadId) {
         channelSet.add(channelId);
@@ -712,6 +780,7 @@ function getFirstEvaluationByTeamlead(evalMonth, teamleadId) {
           evaluations[channelId] = {
             channelId: channelId,
             channelName: channelName,
+            channelComment: channelComment || '', // 채널 코멘트 추가
             members: []
           };
         }
@@ -757,7 +826,7 @@ function saveSecondEvaluation(evaluationData) {
       const channel = evaluationData.channels[channelId];
       channel.members.forEach(member => {
         newRows.push([
-          evalMonth, // 문자열로 저장
+          evalMonth,
           channel.channelId,
           channel.channelName,
           member.id,
@@ -768,13 +837,14 @@ function saveSecondEvaluation(evaluationData) {
           member.contribution2,
           member.achievement,
           member.comment1,
-          member.comment2
+          member.comment2,
+          channel.channelComment || '' // 채널 코멘트 추가
         ]);
       });
     }
     
     if (newRows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 12).setValues(newRows);
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
     }
     
     return { success: true, message: '2차 평가가 저장되었습니다.' };
@@ -807,7 +877,7 @@ function saveFinalEvaluation(channelData) {
       channel.members.forEach(member => {
         const calcAmount = distributionAmount * member.contribution2 / 100;
         newRows.push([
-          evalMonth, // 문자열로 저장
+          evalMonth,
           channelId,
           channel.channelName,
           member.id,
@@ -850,44 +920,42 @@ function getInitialData() {
   };
 }
 
-// ===== 샘플 데이터 생성 함수 =====
-function setupSampleData() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  
-  // 팀장정보 시트 생성
-  let teamleadSheet = ss.getSheetByName('팀장정보');
-  if (!teamleadSheet) {
-    teamleadSheet = ss.insertSheet('팀장정보');
-    teamleadSheet.getRange(1, 1, 1, 4).setValues([['팀장ID', '팀장명', '담당팀ID', '활성상태']]);
-    const teamleads = [
-      ['TL001', '김팀장', 'team1', 'Y'],
-      ['TL002', '이팀장', 'team2', 'Y'],
-      ['TL003', '박팀장', 'team3', 'Y'],
-      ['TL004', '최팀장', 'team4', 'Y'],
-      ['TL005', '정팀장', 'team5', 'Y']
-    ];
-    teamleadSheet.getRange(2, 1, teamleads.length, 4).setValues(teamleads);
-  }
-  
-  // 평가정보 시트 생성
-  let evalInfoSheet = ss.getSheetByName('평가정보');
-  if (!evalInfoSheet) {
-    evalInfoSheet = ss.insertSheet('평가정보');
-    evalInfoSheet.getRange(1, 1, 1, 6).setValues([['평가ID', '평가월', '팀장ID', '팀장명', '평가단계', '최종수정일시']]);
-  }
-  
-  // 헤더 스타일 적용
-  const allSheets = ss.getSheets();
-  allSheets.forEach(sheet => {
-    const lastColumn = sheet.getLastColumn();
-    if (lastColumn > 0) {
-      const headerRange = sheet.getRange(1, 1, 1, lastColumn);
-      headerRange.setBackground('#34495e');
-      headerRange.setFontColor('#ffffff');
-      headerRange.setFontWeight('bold');
-      sheet.setFrozenRows(1);
+// ===== 전월 비교 데이터 조회 함수 =====
+function getComparisonData(evalMonth) {
+  try {
+    const monthStr = String(evalMonth);
+    
+    // 1차/2차 평가 데이터
+    const evaluations = getFirstEvaluationData(monthStr);
+    
+    // 최종 평가 데이터
+    const finalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const finalData = finalSheet.getDataRange().getValues();
+    const finalEval = {};
+    
+    for (let i = 1; i < finalData.length; i++) {
+      const [month, channelId, channelName, memberId, memberName, teamName, 
+             contribution2, totalAmount, leaderPercentage, distributionAmount, 
+             calcAmount, finalAmount, timestamp] = finalData[i];
+      
+      if (String(month) === monthStr) {
+        if (!finalEval[channelId]) {
+          finalEval[channelId] = {
+            channelName: channelName,
+            totalAmount: totalAmount,
+            members: {}
+          };
+        }
+        finalEval[channelId].members[memberId] = finalAmount;
+      }
     }
-  });
-  
-  return '샘플 데이터가 생성되었습니다.';
+    
+    return {
+      evaluations: evaluations,
+      finalEval: finalEval
+    };
+  } catch (error) {
+    console.error('비교 데이터 조회 오류:', error);
+    return { evaluations: {}, finalEval: {} };
+  }
 }
