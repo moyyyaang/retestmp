@@ -27,6 +27,7 @@
             <button class="role-btn" onclick="switchRole('teamlead')">1차 평가 (팀장)</button>
             <button class="role-btn" onclick="switchRole('manager')">2차 평가 (관리자)</button>
             <button class="role-btn" onclick="switchRole('executive')">최종 평가 (최종관리자)</button>
+            <button class="role-btn" onclick="switchRole('comparison')">전월 비교</button>
         </div>
         
         <!-- 알림 메시지 영역 -->
@@ -36,7 +37,7 @@
         <div class="content-area">
             <!-- 관리 화면 -->
             <div id="managementContent" class="role-content">
-                <h2>팀원 및 채널 관리</h2>
+                <h2>⚙️ 팀원 및 채널 관리</h2>
                 
                 <!-- 팀 필터 -->
                 <div class="team-filter-section">
@@ -54,7 +55,7 @@
                 <div class="management-grid">
                     <!-- 팀원 관리 카드 -->
                     <div class="management-card">
-                        <h4>팀원 관리</h4>
+                        <h4>👥 팀원 관리</h4>
                         
                         <!-- 팀원 추가 -->
                         <div class="form-group">
@@ -66,7 +67,7 @@
                                 <option value="">팀 선택</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary" onclick="addNewMember()">팀원 추가</button>
+                        <button class="btn btn-primary" onclick="addNewMember()">➕ 팀원 추가</button>
                         
                         <!-- 팀원 목록 -->
                         <div class="form-group" style="margin-top: 20px;">
@@ -77,7 +78,7 @@
                     
                     <!-- 채널 관리 카드 -->
                     <div class="management-card">
-                        <h4>채널 관리</h4>
+                        <h4>📺 채널 관리</h4>
                         
                         <!-- 채널 추가 -->
                         <div class="form-group">
@@ -89,7 +90,7 @@
                                 <option value="">팀 선택</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary" onclick="addNewChannel()">채널 추가</button>
+                        <button class="btn btn-primary" onclick="addNewChannel()">➕ 채널 추가</button>
                         
                         <!-- 채널 목록 -->
                         <div class="form-group" style="margin-top: 20px;">
@@ -101,7 +102,10 @@
                 
                 <!-- 채널별 팀원 할당 -->
                 <div class="management-section" style="margin-top: 30px;">
-                    <h3>채널별 팀원 할당</h3>
+                    <h3>🔗 채널별 팀원 할당</h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        💡 팁: 1차 평가 페이지에서도 각 채널별로 팀원을 직접 추가/제거할 수 있습니다.
+                    </p>
                     
                     <div class="selector-group">
                         <div class="selector-item">
@@ -124,19 +128,19 @@
                                 <option value="team5">스튜디오 5팀</option>
                             </select>
                         </div>
-                        <h4>팀원 선택</h4>
+                        <h4>✅ 팀원 선택</h4>
                         <div id="memberCheckboxList" class="member-checkbox-list"></div>
-                        <button class="btn btn-success" style="margin-top: 15px;" onclick="saveChannelMembers()">선택한 팀원 저장</button>
+                        <button class="btn btn-success" style="margin-top: 15px;" onclick="saveChannelMembers()">💾 선택한 팀원 저장</button>
                     </div>
                 </div>
                 
                 <!-- 디버깅 버튼 -->
-                <button class="btn btn-warning" style="margin-top: 20px;" onclick="checkDataStatus()">데이터 상태 확인</button>
+                <button class="btn btn-warning" style="margin-top: 20px;" onclick="checkDataStatus()">🔍 데이터 상태 확인</button>
             </div>
             
             <!-- 1차 평가 (팀장) 화면 -->
             <div id="teamleadContent" class="role-content">
-                <h2>1차 평가 - 채널별 성과 입력</h2>
+                <h2>📝 1차 평가 - 채널별 성과 입력</h2>
                 
                 <div class="selector-group">
                     <div class="selector-item">
@@ -154,7 +158,7 @@
                 <div id="evaluationModeArea" style="display: none;">
                     <!-- 기존 평가 정보 표시 영역 -->
                     <div id="existingEvalInfo" class="eval-info-box" style="display: none;">
-                        <h3>기존 평가 정보</h3>
+                                                    <h3>📋 기존 평가 정보</h3>
                         <div class="eval-info-item">
                             <span class="eval-info-label">최종 수정:</span>
                             <span class="eval-info-value" id="lastModified"></span>
@@ -163,7 +167,7 @@
                             <span class="eval-info-label">평가 채널:</span>
                             <span class="eval-info-value" id="evaluatedChannelsList"></span>
                         </div>
-                        <button class="btn btn-warning" onclick="enableEditMode()">평가 수정하기</button>
+                        <button class="btn btn-warning" onclick="enableEditMode()">✏️ 평가 수정하기</button>
                     </div>
                     
                     <!-- 신규/수정 평가 영역 -->
@@ -183,49 +187,68 @@
                         </div>
                         
                         <div id="teamChannelsArea" style="display: none;">
-                            <h3>평가할 채널 선택</h3>
+                            <h3>📺 평가할 채널 선택</h3>
                             <div id="channelCheckboxArea" class="channel-checkbox-area"></div>
-                            <button class="btn btn-primary" style="margin: 20px 0;" onclick="loadSelectedChannels()">선택한 채널 평가하기</button>
+                            <button class="btn btn-primary" style="margin: 20px 0;" onclick="loadSelectedChannels()">🎯 선택한 채널 평가하기</button>
                         </div>
                     </div>
                 </div>
                 
                 <div id="channelEvaluationsArea"></div>
                 
-                <button class="submit-btn" id="submitFirstEvalBtn" style="display: none;" onclick="submitFirstEvaluation()">1차 평가 최종 제출</button>
+                <button class="submit-btn" id="submitFirstEvalBtn" style="display: none;" onclick="submitFirstEvaluation()">✨ 1차 평가 최종 제출</button>
             </div>
             
             <!-- 2차 평가 (관리자) 화면 -->
             <div id="managerContent" class="role-content">
-                <h2>2차 평가 - 평가 조정</h2>
+                <h2>🔄 2차 평가 - 평가 조정</h2>
                 
                 <div class="selector-group">
                     <div class="selector-item">
                         <label>평가월:</label>
                         <input type="month" id="evalMonth2nd">
                     </div>
-                    <button class="btn btn-primary" onclick="loadSecondEvaluation()">평가 데이터 불러오기</button>
-                    <button class="btn btn-warning" onclick="debugEvaluation()">데이터 확인 (디버깅)</button>
+                    <button class="btn btn-primary" onclick="loadSecondEvaluation()">📥 평가 데이터 불러오기</button>
+                    <button class="btn btn-warning" onclick="debugEvaluation()">🐛 데이터 확인 (디버깅)</button>
                 </div>
                 
                 <div id="secondEvaluationArea"></div>
-                <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluation()">2차 평가 저장</button>
+                <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluation()">✨ 2차 평가 저장</button>
             </div>
             
             <!-- 최종 평가 (최종관리자) 화면 -->
             <div id="executiveContent" class="role-content">
-                <h2>최종 평가 - 성과금 책정</h2>
+                <h2>✅ 최종 평가 - 성과금 책정</h2>
                 
                 <div class="selector-group">
                     <div class="selector-item">
                         <label>평가월:</label>
                         <input type="month" id="evalMonthFinal">
                     </div>
-                    <button class="btn btn-primary" onclick="loadFinalEvaluation()">평가 데이터 불러오기</button>
+                    <button class="btn btn-primary" onclick="loadFinalEvaluation()">📥 평가 데이터 불러오기</button>
                 </div>
                 
                 <div id="finalEvaluationArea"></div>
-                <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluation()">이달의 평가 최종 확정</button>
+                <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluation()">🎉 이달의 평가 최종 확정</button>
+            </div>
+            
+            <!-- 전월 비교 화면 -->
+            <div id="comparisonContent" class="role-content">
+                <h2>📈 전월 비교 분석</h2>
+                
+                <div class="selector-group">
+                    <div class="selector-item">
+                        <label>비교 기준월:</label>
+                        <input type="month" id="compareMonth1">
+                    </div>
+                    <div class="selector-item">
+                        <label>비교 대상월:</label>
+                        <input type="month" id="compareMonth2">
+                    </div>
+                    <button class="btn btn-primary" onclick="loadComparisonData()">🔍 비교 분석 실행</button>
+                </div>
+                
+                <div id="comparisonArea"></div>
             </div>
         </div>
     </div>
