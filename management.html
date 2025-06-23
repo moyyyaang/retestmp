@@ -1,0 +1,228 @@
+<script>
+// ===== 관리 기능 함수들 =====
+function filterManagementByTeam() {
+    const selectedTeam = document.getElementById('managementTeamFilter').value;
+    updateMemberList(selectedTeam);
+    updateChannelList(selectedTeam);
+}
+
+function updateMemberList(teamFilter = '') {
+    const listDiv = document.getElementById('memberList');
+    listDiv.innerHTML = '';
+    
+    const filteredMembers = teamFilter 
+        ? evaluationData.members.filter(m => m.teamId === teamFilter)
+        : evaluationData.members;
+    
+    filteredMembers.forEach(member => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+            <span>${member.name} (${evaluationData.teams[member.teamId].name})</span>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">삭제</button>
+        `;
+        listDiv.appendChild(item);
+    });
+}
+
+function updateChannelList(teamFilter = '') {
+    const listDiv = document.getElementById('channelList');
+    listDiv.innerHTML = '';
+    
+    const filteredChannels = teamFilter 
+        ? evaluationData.channels.filter(c => c.teamId === teamFilter)
+        : evaluationData.channels;
+    
+    filteredChannels.forEach(channel => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+            <span>${channel.name} (${evaluationData.teams[channel.teamId].name})</span>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteChannel('${channel.id}')">삭제</button>
+        `;
+        listDiv.appendChild(item);
+    });
+}
+
+function addNewMember() {
+    const name = document.getElementById('newMemberName').value.trim();
+    const teamId = document.getElementById('newMemberTeam').value;
+    
+    if (!name || !teamId) {
+        showAlert('팀원 이름과 팀을 모두 입력해주세요.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                document.getElementById('newMemberName').value = '';
+                document.getElementById('newMemberTeam').value = '';
+                loadInitialData();
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('팀원 추가 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .addMember({ name: name, teamId: teamId });
+}
+
+function deleteMember(memberId) {
+    if (!confirm('정말로 이 팀원을 삭제하시겠습니까?')) return;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                loadInitialData();
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('팀원 삭제 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .deleteMember(memberId);
+}
+
+function addNewChannel() {
+    const name = document.getElementById('newChannelName').value.trim();
+    const teamId = document.getElementById('newChannelTeam').value;
+    
+    if (!name || !teamId) {
+        showAlert('채널명과 팀을 모두 입력해주세요.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                document.getElementById('newChannelName').value = '';
+                document.getElementById('newChannelTeam').value = '';
+                loadInitialData();
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('채널 추가 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .addChannel({ name: name, teamId: teamId });
+}
+
+function deleteChannel(channelId) {
+    if (!confirm('정말로 이 채널을 삭제하시겠습니까?')) return;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                loadInitialData();
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('채널 삭제 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .deleteChannel(channelId);
+}
+
+function loadChannelMembersForAssignment() {
+    const channelId = document.getElementById('channelForMemberAssignment').value;
+    const assignmentArea = document.getElementById('channelMemberAssignmentArea');
+    
+    if (!channelId) {
+        assignmentArea.style.display = 'none';
+        return;
+    }
+    
+    assignmentArea.style.display = 'block';
+    showLoading(true);
+    
+    google.script.run
+        .withSuccessHandler(function(channelMembers) {
+            const channelMemberIds = channelMembers.map(m => m.id);
+            evaluationData.currentChannelMembers = channelMemberIds;
+            filterAssignmentMembers();
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('채널 멤버 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getChannelMembersData(channelId);
+}
+
+function filterAssignmentMembers() {
+    const teamFilter = document.getElementById('memberAssignmentTeamFilter').value;
+    const checkboxList = document.getElementById('memberCheckboxList');
+    checkboxList.innerHTML = '';
+    
+    const filteredMembers = teamFilter 
+        ? evaluationData.members.filter(m => m.teamId === teamFilter)
+        : evaluationData.members;
+    
+    filteredMembers.forEach(member => {
+        const item = document.createElement('div');
+        item.className = 'member-checkbox-item';
+        
+        const isChecked = evaluationData.currentChannelMembers.includes(member.id);
+        
+        item.innerHTML = `
+            <input type="checkbox" id="member_cb_${member.id}" value="${member.id}" ${isChecked ? 'checked' : ''}>
+            <label for="member_cb_${member.id}">
+                <span>${member.name}</span>
+                <span class="member-team-badge">${evaluationData.teams[member.teamId].name}</span>
+            </label>
+        `;
+        
+        checkboxList.appendChild(item);
+    });
+}
+
+function saveChannelMembers() {
+    const channelId = document.getElementById('channelForMemberAssignment').value;
+    if (!channelId) {
+        showAlert('채널을 선택해주세요.', 'error');
+        return;
+    }
+    
+    const selectedMemberIds = [];
+    document.querySelectorAll('#memberCheckboxList input[type="checkbox"]:checked').forEach(checkbox => {
+        selectedMemberIds.push(checkbox.value);
+    });
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showAlert(result.message, 'success');
+            } else {
+                showAlert(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showAlert('저장 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .updateChannelMembers(channelId, selectedMemberIds);
+}
+</script>
