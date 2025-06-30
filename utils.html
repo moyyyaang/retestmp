@@ -18,6 +18,39 @@ let evaluationData = {
     currentEvalInfo: null
 };
 
+// ===== 다크모드 강제 적용 함수 =====
+function forceDarkMode() {
+    // 모든 select, input, textarea 요소에 다크모드 스타일 강제 적용
+    const elements = document.querySelectorAll('select, input, textarea');
+    elements.forEach(el => {
+        el.style.backgroundColor = '#0f0f0f';
+        el.style.color = '#f1f1f1';
+        el.style.border = '1px solid #3f3f3f';
+    });
+    
+    // 특히 문제가 되는 팀 선택과 팀원 선택 드롭다운 강제 적용
+    const problemSelects = document.querySelectorAll('[id^="teamSelect_"], [id^="memberSelect_"], #managementTeamFilter, #evaluationTeamSelect');
+    problemSelects.forEach(select => {
+        select.style.backgroundColor = '#0f0f0f !important';
+        select.style.color = '#f1f1f1 !important';
+        select.style.border = '1px solid #3f3f3f !important';
+        select.style.setProperty('background-color', '#0f0f0f', 'important');
+        select.style.setProperty('color', '#f1f1f1', 'important');
+        select.style.setProperty('border', '1px solid #3f3f3f', 'important');
+    });
+}
+
+// DOM이 변경될 때마다 다크모드 재적용
+const observer = new MutationObserver(function(mutations) {
+    forceDarkMode();
+});
+
+// 옵저버 시작
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
 // ===== 초기 데이터 로드 =====
 function loadInitialData() {
     showLoading(true);
@@ -51,6 +84,9 @@ function loadInitialData() {
             if (document.getElementById('teamleadSelect').value) {
                 checkExistingEvaluation();
             }
+            
+            // 다크모드 강제 적용
+            setTimeout(forceDarkMode, 100);
             
             showLoading(false);
         })
@@ -86,8 +122,29 @@ function updateAllSelectors() {
             const option = document.createElement('option');
             option.value = teamlead.id;
             option.textContent = `${teamlead.name} (${evaluationData.teams[teamlead.teamId].name})`;
+            option.dataset.email = teamlead.email;
+            
+            // 현재 사용자와 이메일이 같으면 자동 선택
+            if (currentUser.email === teamlead.email) {
+                option.selected = true;
+            }
+            
+            // 권한 레벨 1인 경우 본인만 선택 가능
+            if (currentUser.level === 1 && currentUser.email !== teamlead.email) {
+                option.disabled = true;
+            }
+            
             teamleadSelect.appendChild(option);
         });
+        
+        // 자동 선택된 경우 평가 확인
+        if (teamleadSelect.value) {
+            setTimeout(() => {
+                if (typeof checkExistingEvaluation === 'function') {
+                    checkExistingEvaluation();
+                }
+            }, 100);
+        }
     }
     
     // 채널 선택 옵션 업데이트
@@ -96,6 +153,9 @@ function updateAllSelectors() {
     // 관리 화면 리스트 업데이트
     updateMemberList();
     updateChannelList();
+    
+    // 다크모드 강제 적용
+    setTimeout(forceDarkMode, 100);
 }
 
 function updateChannelSelectors() {
@@ -109,6 +169,9 @@ function updateChannelSelectors() {
             select.appendChild(option);
         });
     }
+    
+    // 다크모드 적용
+    forceDarkMode();
 }
 
 // ===== 로딩 표시 =====
@@ -128,20 +191,51 @@ function switchRole(role) {
     document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
     
     // 선택된 역할 활성화
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     // 해당 역할의 콘텐츠 표시
     if (role === 'management') {
+        if (currentUser.level < 2) {
+            showAlert('팀원/채널 관리 권한이 없습니다.', 'error');
+            return;
+        }
         document.getElementById('managementContent').classList.add('active');
     } else if (role === 'teamlead') {
+        if (currentUser.level < 1) {
+            showAlert('1차 평가 권한이 없습니다.', 'error');
+            return;
+        }
         document.getElementById('teamleadContent').classList.add('active');
     } else if (role === 'manager') {
+        if (currentUser.level < 2) {
+            showAlert('2차 평가 권한이 없습니다.', 'error');
+            return;
+        }
         document.getElementById('managerContent').classList.add('active');
     } else if (role === 'executive') {
+        if (currentUser.level < 3) {
+            showAlert('최종 평가 권한이 없습니다.', 'error');
+            return;
+        }
         document.getElementById('executiveContent').classList.add('active');
     } else if (role === 'comparison') {
         document.getElementById('comparisonContent').classList.add('active');
+    } else if (role === 'permission') {
+        if (currentUser.level < 3) {
+            showAlert('권한 관리 접근 권한이 없습니다.', 'error');
+            return;
+        }
+        const permissionContent = document.getElementById('permissionContent');
+        if (permissionContent) {
+            permissionContent.classList.add('active');
+            loadPermissionsList();
+        }
     }
+    
+    // 역할 전환 후 다크모드 재적용
+    setTimeout(forceDarkMode, 100);
 }
 
 // ===== 유틸리티 함수 =====
@@ -175,4 +269,14 @@ function checkDataStatus() {
         })
         .checkDataStatus();
 }
+
+// ===== 페이지 로드 시 다크모드 적용 =====
+document.addEventListener('DOMContentLoaded', function() {
+    forceDarkMode();
+});
+
+// 모든 Ajax 응답 후에도 다크모드 재적용
+window.addEventListener('load', function() {
+    forceDarkMode();
+});
 </script>
