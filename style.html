@@ -1246,4 +1246,439 @@
         color: #f87171;
         font-weight: 600;
     }
+
+    /* ===== 팀별 그룹핑 스타일 추가 ===== */
+    .team-group-section {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        border: 2px solid #1a73e8;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .team-group-section.second-eval {
+        border-color: #1a73e8;
+    }
+    
+    .team-group-section.final-eval {
+        border-color: #27ae60;
+    }
+    
+    .team-group-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, currentColor, transparent);
+        animation: shimmer 2s infinite;
+    }
+    
+    .team-group-section.second-eval::before {
+        background: linear-gradient(90deg, transparent, #1a73e8, transparent);
+    }
+    
+    .team-group-section.final-eval::before {
+        background: linear-gradient(90deg, transparent, #27ae60, transparent);
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    .team-group-section h3 {
+        margin-bottom: 20px;
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: space-between;
+    }
+    
+    .team-group-section.second-eval h3 {
+        color: #1a73e8;
+    }
+    
+    .team-group-section.final-eval h3 {
+        color: #27ae60;
+    }
+    
+    /* 팀 그룹 내부의 summary-box 스타일 조정 */
+    .team-group-section .summary-box {
+        background: #212121;
+        border: 1px solid #3f3f3f;
+        margin-bottom: 20px;
+    }
+    
+    .team-group-section .summary-box:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* 팀 뱃지 스타일 */
+    .team-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #272727;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        border: 1px solid #3f3f3f;
+        margin-left: 10px;
+    }
+    
+    .team-badge.team1 { border-color: #e74c3c; color: #e74c3c; }
+    .team-badge.team2 { border-color: #3498db; color: #3498db; }
+    .team-badge.team3 { border-color: #2ecc71; color: #2ecc71; }
+    .team-badge.team4 { border-color: #f39c12; color: #f39c12; }
+    .team-badge.team5 { border-color: #9b59b6; color: #9b59b6; }
+    
+    /* ===== 전월 비교 권한 제한 메시지 스타일 ===== */
+    .permission-required-message {
+        background: #3c1d1d;
+        color: #f87171;
+        border: 1px solid #dc2626;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .permission-required-message h4 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    
+    .permission-required-message p {
+        font-size: 16px;
+        color: #fca5a5;
+    }
+    
+    /* ===== 팀 필터 체크박스 스타일 ===== */
+    .team-checkbox-area {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .team-checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        background: #272727;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .team-checkbox-item:hover {
+        background: #3f3f3f;
+        transform: translateX(4px);
+    }
+    
+    .team-checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        accent-color: #1a73e8;
+        cursor: pointer;
+    }
+    
+    /* ===== 팀장 성과금 표시 스타일 ===== */
+    .leader-amount-display {
+        display: inline-block;
+        background: #272727;
+        padding: 5px 15px;
+        border-radius: 15px;
+        margin-left: 10px;
+        font-size: 14px;
+        color: #60a5fa;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .team-leader-amount-summary {
+        background: #272727;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #4ade80;
+        border: 1px solid #3f3f3f;
+    }
+    
+    /* ===== 채널 코멘트 토글 버튼 스타일 ===== */
+    .channel-comment-toggle {
+        background: #1a73e8;
+        color: white;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        margin-bottom: 10px;
+    }
+    
+    .channel-comment-toggle:hover {
+        background: #1557b0;
+        transform: translateY(-1px);
+    }
+    
+    /* ===== 로딩 개선 - 부분 로딩 ===== */
+    .partial-loading {
+        display: inline-block;
+        margin-left: 10px;
+    }
+    
+    .partial-loading::after {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-top: 2px solid #1a73e8;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    
+    /* ===== 성과 표시 개선 - 줄바꿈 ===== */
+    .achievement-display {
+        white-space: pre-line;
+        line-height: 1.6;
+    }
+    
+    .achievement-item-display {
+        display: block;
+        padding: 3px 0;
+        position: relative;
+        padding-left: 15px;
+    }
+    
+    .achievement-item-display::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: #60a5fa;
+    }
+
+/* ===== 알림 팝업 스타일 ===== */
+    .notification-popup {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 350px;
+        background: #272727;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        border: 1px solid #3f3f3f;
+        z-index: 10000;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+    }
+    
+    .notification-popup.show {
+        transform: translateX(0);
+    }
+    
+    .notification-popup.success {
+        border-color: #27ae60;
+    }
+    
+    .notification-popup.error {
+        border-color: #e74c3c;
+    }
+    
+    .notification-popup.warning {
+        border-color: #f39c12;
+    }
+    
+    .notification-popup.info {
+        border-color: #3498db;
+    }
+    
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #3f3f3f;
+    }
+    
+    .notification-content {
+        padding: 15px;
+        color: #f1f1f1;
+        font-size: 14px;
+    }
+    
+    .close-btn {
+        background: none;
+        border: none;
+        color: #aaa;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+    
+    .close-btn:hover {
+        background: #3f3f3f;
+        color: #fff;
+    }
+    
+    /* ===== 평가 상태 섹션 ===== */
+    .evaluation-status-section {
+        background: #212121;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .evaluation-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .status-card {
+        background: #272727;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #3f3f3f;
+        transition: all 0.3s;
+    }
+    
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .status-card h4 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #fff;
+    }
+    
+    .status-stage {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .status-details {
+        display: flex;
+        gap: 15px;
+        font-size: 12px;
+        color: #aaa;
+    }
+    
+    .status-pending {
+        border-color: #666;
+    }
+    
+    .status-pending .status-stage {
+        color: #aaa;
+    }
+    
+    .status-first {
+        border-color: #3498db;
+    }
+    
+    .status-first .status-stage {
+        color: #3498db;
+    }
+    
+    .status-second {
+        border-color: #f39c12;
+    }
+    
+    .status-second .status-stage {
+        color: #f39c12;
+    }
+    
+    .status-complete {
+        border-color: #27ae60;
+    }
+    
+    .status-complete .status-stage {
+        color: #27ae60;
+    }
+    
+    /* ===== 대시보드 섹션 ===== */
+    .dashboard-section {
+        display: none;
+    }
+    
+    .dashboard-section.active {
+        display: block;
+    }
+    
+    /* ===== 드래그 핸들 스타일 ===== */
+    .channel-drag-handle {
+        cursor: move;
+        padding: 10px;
+        text-align: center;
+        background: #1a1a1a;
+        border-radius: 8px 8px 0 0;
+        margin: -20px -20px 15px -20px;
+        color: #aaa;
+        transition: all 0.2s;
+    }
+    
+    .channel-drag-handle:hover {
+        background: #272727;
+        color: #fff;
+    }
+    
+    .drag-handle {
+        cursor: move;
+        color: #666;
+        font-size: 20px;
+        text-align: center;
+        width: 40px;
+    }
+    
+    .drag-handle:hover {
+        color: #1a73e8;
+    }
+    
+    /* ===== 차트 컨테이너 ===== */
+    #trendChartArea {
+        margin-top: 30px;
+        padding: 20px;
+        background: #272727;
+        border-radius: 12px;
+        border: 1px solid #3f3f3f;
+    }
+    
+    #individualChart {
+        max-height: 400px;
+    }
+    
+    /* ===== 드래그 중 스타일 ===== */
+    .sortable-ghost {
+        opacity: 0.4;
+        background: #1a73e8;
+    }
+    
+    .sortable-drag {
+        opacity: 0.9;
+        transform: rotate(2deg);
+    }
+
+
+
+
 </style>
