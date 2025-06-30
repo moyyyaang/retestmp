@@ -9,6 +9,16 @@ function checkExistingEvaluation() {
         return;
     }
     
+    // 현재 사용자가 선택한 팀장인지 확인 (레벨 1 권한자)
+    if (currentUser.level === 1) {
+        const selectedEmail = document.querySelector(`#teamleadSelect option[value="${teamleadId}"]`).dataset.email;
+        if (selectedEmail && selectedEmail !== currentUser.email) {
+            showAlert('본인의 평가만 작성/수정할 수 있습니다.', 'error');
+            document.getElementById('evaluationModeArea').style.display = 'none';
+            return;
+        }
+    }
+    
     evaluationData.currentEvalMonth = evalMonth;
     evaluationData.currentTeamleadId = teamleadId;
     
@@ -82,6 +92,38 @@ function displayNewEvaluation() {
     document.getElementById('channelEvaluationsArea').innerHTML = '';
     evaluationData.selectedChannels = [];
     evaluationData.currentChannels = {};
+    
+    // 레벨 1 사용자는 자신의 팀 채널만 자동 로드
+    if (currentUser.level === 1 && currentUser.teamId) {
+        loadTeamChannelsAuto();
+    }
+}
+
+function loadTeamChannelsAuto() {
+    // 레벨 1 사용자를 위한 자동 팀 채널 로드
+    const channelsArea = document.getElementById('teamChannelsArea');
+    const checkboxArea = document.getElementById('channelCheckboxArea');
+    
+    channelsArea.style.display = 'block';
+    checkboxArea.innerHTML = '';
+    
+    // 팀 선택 숨기기
+    const teamSelectDiv = document.getElementById('evaluationTeamSelect');
+    if (teamSelectDiv && teamSelectDiv.parentElement) {
+        teamSelectDiv.parentElement.style.display = 'none';
+    }
+    
+    const teamChannels = evaluationData.channels; // 이미 필터링된 데이터
+    
+    teamChannels.forEach(channel => {
+        const item = document.createElement('div');
+        item.className = 'channel-checkbox-item';
+        item.innerHTML = `
+            <input type="checkbox" id="ch_${channel.id}" value="${channel.id}" onchange="updateSelectedChannels('${channel.id}')">
+            <label for="ch_${channel.id}">${channel.name}</label>
+        `;
+        checkboxArea.appendChild(item);
+    });
 }
 
 function displayEvaluationReadOnly() {
@@ -282,6 +324,7 @@ function loadSelectedChannels() {
     });
 }
 
+// ===== displayChannelEvaluation 함수 수정 =====
 function displayChannelEvaluation(channelId, channelMembers, existingEval) {
     const channel = evaluationData.channels.find(c => c.id === channelId);
     
@@ -308,28 +351,28 @@ function displayChannelEvaluation(channelId, channelMembers, existingEval) {
             
             <div id="channelComment_${channelId}" class="channel-comment-section" style="display: none;">
                 <label><strong>채널 전체 코멘트:</strong></label>
-                <textarea id="channelCommentText_${channelId}" placeholder="이 채널에 대한 전체적인 평가나 특이사항을 입력하세요" style="width: 100%; min-height: 80px; margin-top: 10px;">${existingEval.channelComment || ''}</textarea>
+                <textarea id="channelCommentText_${channelId}" placeholder="이 채널에 대한 전체적인 평가나 특이사항을 입력하세요" style="width: 100%; min-height: 80px; margin-top: 10px; background-color: #0f0f0f !important; color: #f1f1f1 !important; border: 1px solid #3f3f3f !important;">${existingEval.channelComment || ''}</textarea>
             </div>
             
             <div id="memberManagement_${channelId}" class="member-management-section" style="display: none;">
                 <h5>👥 채널 팀원 관리</h5>
                 <div style="display: flex; gap: 20px; margin-bottom: 15px;">
                     <div style="flex: 1;">
-                        <label>팀 선택:</label>
-                        <select id="teamSelect_${channelId}" onchange="loadTeamMembers('${channelId}')" style="width: 100%;">
-                            <option value="">팀을 선택하세요</option>
-                            <option value="team1">스튜디오 1팀</option>
-                            <option value="team2">스튜디오 2팀</option>
-                            <option value="team3">스튜디오 3팀</option>
-                            <option value="team4">스튜디오 4팀</option>
-                            <option value="team5">스튜디오 5팀</option>
+                        <label style="color: #f1f1f1;">팀 선택:</label>
+                        <select id="teamSelect_${channelId}" onchange="loadTeamMembers('${channelId}')" style="background-color: #0f0f0f !important; color: #f1f1f1 !important; border: 1px solid #3f3f3f !important; padding: 10px; border-radius: 4px; width: 100%;">
+                            <option value="" style="background-color: #0f0f0f; color: #f1f1f1;">팀을 선택하세요</option>
+                            <option value="team1" style="background-color: #0f0f0f; color: #f1f1f1;">스튜디오 1팀</option>
+                            <option value="team2" style="background-color: #0f0f0f; color: #f1f1f1;">스튜디오 2팀</option>
+                            <option value="team3" style="background-color: #0f0f0f; color: #f1f1f1;">스튜디오 3팀</option>
+                            <option value="team4" style="background-color: #0f0f0f; color: #f1f1f1;">스튜디오 4팀</option>
+                            <option value="team5" style="background-color: #0f0f0f; color: #f1f1f1;">스튜디오 5팀</option>
                         </select>
                     </div>
                     <div style="flex: 2;">
-                        <label>팀원 추가:</label>
-                        <div style="display: flex; gap: 10px;">
-                            <select id="memberSelect_${channelId}" style="flex: 1;">
-                                <option value="">팀원을 선택하세요</option>
+                        <label style="color: #f1f1f1;">팀원 추가:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="memberSelect_${channelId}" style="flex: 1; background-color: #0f0f0f !important; color: #f1f1f1 !important; border: 1px solid #3f3f3f !important; padding: 10px; border-radius: 4px;">
+                                <option value="" style="background-color: #0f0f0f; color: #f1f1f1;">팀원을 선택하세요</option>
                             </select>
                             <button class="btn btn-success" onclick="addMemberToChannelEval('${channelId}')">➕ 추가</button>
                         </div>
@@ -379,10 +422,48 @@ function displayChannelEvaluation(channelId, channelMembers, existingEval) {
         setTimeout(() => {
             updateMMTotal(channelId);
             updateContributionBar(channelId);
+            // 다크모드 강제 적용
+            forceDarkModeForChannel(channelId);
+        }, 100);
+    } else {
+        // 새로운 평가인 경우에도 다크모드 적용
+        setTimeout(() => {
+            forceDarkModeForChannel(channelId);
         }, 100);
     }
     
     return html;
+}
+
+function forceDarkModeForChannel(channelId) {
+    const teamSelect = document.getElementById(`teamSelect_${channelId}`);
+    const memberSelect = document.getElementById(`memberSelect_${channelId}`);
+    
+    if (teamSelect) {
+        teamSelect.style.backgroundColor = '#0f0f0f';
+        teamSelect.style.color = '#f1f1f1';
+        teamSelect.style.border = '1px solid #3f3f3f';
+        
+        // 모든 option 요소에도 스타일 적용
+        const options = teamSelect.querySelectorAll('option');
+        options.forEach(option => {
+            option.style.backgroundColor = '#0f0f0f';
+            option.style.color = '#f1f1f1';
+        });
+    }
+    
+    if (memberSelect) {
+        memberSelect.style.backgroundColor = '#0f0f0f';
+        memberSelect.style.color = '#f1f1f1';
+        memberSelect.style.border = '1px solid #3f3f3f';
+        
+        // 모든 option 요소에도 스타일 적용
+        const options = memberSelect.querySelectorAll('option');
+        options.forEach(option => {
+            option.style.backgroundColor = '#0f0f0f';
+            option.style.color = '#f1f1f1';
+        });
+    }
 }
 
 // 팀원 행 생성 함수
@@ -433,7 +514,7 @@ function createMemberRow(channelId, member, existing, achievements) {
     return html;
 }
 
-// 팀원 관리 토글
+// ===== 팀원 관리 토글 함수 수정 =====
 function toggleMemberManagement(channelId) {
     const managementSection = document.getElementById(`memberManagement_${channelId}`);
     const toggleButton = document.getElementById(`memberToggle_${channelId}`);
@@ -441,30 +522,34 @@ function toggleMemberManagement(channelId) {
     if (managementSection.style.display === 'none') {
         managementSection.style.display = 'block';
         toggleButton.textContent = '👥 팀원 관리 닫기';
+        // 팀원 관리 섹션을 열 때 다크모드 재적용
+        setTimeout(() => {
+            forceDarkModeForChannel(channelId);
+        }, 50);
     } else {
         managementSection.style.display = 'none';
         toggleButton.textContent = '👥 팀원 관리';
     }
 }
 
-// 팀별 멤버 로드
+// ===== loadTeamMembers 함수 수정 =====
 function loadTeamMembers(channelId) {
     const teamId = document.getElementById(`teamSelect_${channelId}`).value;
     const memberSelect = document.getElementById(`memberSelect_${channelId}`);
     
     if (!teamId) {
-        memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+        memberSelect.innerHTML = '<option value="" style="background-color: #0f0f0f; color: #f1f1f1;">팀원을 선택하세요</option>';
         return;
     }
     
     // 현재 채널에 이미 있는 멤버 ID 목록
-    const existingMemberIds = Object.keys(evaluationData.currentChannels[channelId] || {})
-        .map(key => evaluationData.currentChannels[channelId][key].id);
+    const existingMemberIds = evaluationData.currentChannels[channelId] ? 
+        evaluationData.currentChannels[channelId].map(m => m.id) : [];
     
     showLoading(true);
     google.script.run
         .withSuccessHandler(function(teamMembers) {
-            memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+            memberSelect.innerHTML = '<option value="" style="background-color: #0f0f0f; color: #f1f1f1;">팀원을 선택하세요</option>';
             
             teamMembers.forEach(member => {
                 // 이미 추가된 멤버는 제외
@@ -473,9 +558,16 @@ function loadTeamMembers(channelId) {
                     option.value = member.id;
                     option.textContent = member.name;
                     option.dataset.teamName = evaluationData.teams[member.teamId].name;
+                    option.style.backgroundColor = '#0f0f0f';
+                    option.style.color = '#f1f1f1';
                     memberSelect.appendChild(option);
                 }
             });
+            
+            // select 요소 스타일 재적용
+            memberSelect.style.backgroundColor = '#0f0f0f';
+            memberSelect.style.color = '#f1f1f1';
+            memberSelect.style.border = '1px solid #3f3f3f';
             
             showLoading(false);
         })
@@ -878,9 +970,16 @@ function displaySecondEvaluation() {
                         <span class="summary-label">1차 기여도 합계:</span>
                         <span class="summary-value percentage">${totalContrib1}%</span>
                     </div>
+                </div>
+                
+                <!-- 2차 기여도 게이지 추가 -->
+                <div class="contribution-progress">
                     <div class="summary-item">
                         <span class="summary-label">2차 기여도 합계:</span>
                         <span class="summary-value percentage" id="totalContrib2_${channelId}">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="contrib2Bar_${channelId}" style="width: 0%">0%</div>
                     </div>
                 </div>
                 
@@ -934,7 +1033,7 @@ function displaySecondEvaluation() {
     }
 }
 
-// 2차 기여도 합계 업데이트
+// 2차 기여도 합계 업데이트 (게이지 포함)
 function updateContrib2Total(channelId) {
     const channelEval = evaluationData.firstEvaluation[channelId];
     let total = 0;
@@ -947,9 +1046,28 @@ function updateContrib2Total(channelId) {
     });
     
     const totalElement = document.getElementById(`totalContrib2_${channelId}`);
+    const progressBar = document.getElementById(`contrib2Bar_${channelId}`);
+    
     if (totalElement) {
         totalElement.textContent = `${total}%`;
         totalElement.style.color = (total === 100) ? '#27ae60' : (total > 100) ? '#e74c3c' : '#3498db';
+    }
+    
+    if (progressBar) {
+        const width = Math.min(total, 100);
+        progressBar.style.width = `${width}%`;
+        progressBar.textContent = `${total}%`;
+        
+        // 색상 변경
+        if (total === 100) {
+            progressBar.classList.add('complete');
+            progressBar.classList.remove('over');
+        } else if (total > 100) {
+            progressBar.classList.add('over');
+            progressBar.classList.remove('complete');
+        } else {
+            progressBar.classList.remove('complete', 'over');
+        }
     }
 }
 
@@ -1097,7 +1215,7 @@ function displayFinalEvaluation() {
                     <span class="summary-value amount" id="dist_${channelId}" style="font-size: 24px; margin-left: 15px;">0만원</span>
                 </div>
                 
-                <div class="progress-container" style="margin-bottom: 20px;">
+                <div class="final-eval-progress">
                     <label>💸 성과금 분배 현황:</label>
                     <div class="progress-bar">
                         <div class="progress-fill" id="progress_${channelId}" style="width: 0%">0%</div>
@@ -1342,6 +1460,7 @@ function debugEvaluation() {
 function loadComparisonData() {
     const month1 = document.getElementById('compareMonth1').value;
     const month2 = document.getElementById('compareMonth2').value;
+    const comparisonType = document.querySelector('.comparison-tab.active')?.dataset.type || 'all';
     
     if (!month1 || !month2) {
         showAlert('비교할 두 달을 모두 선택해주세요.', 'error');
@@ -1350,22 +1469,24 @@ function loadComparisonData() {
     
     showLoading(true);
     
-    // 두 달의 데이터를 가져오기
+    // 팀별/전체 모드에 따라 다르게 로드
+    const isTeamOnly = (comparisonType === 'team') || (currentUser.level === 1);
+    
     Promise.all([
         new Promise((resolve, reject) => {
             google.script.run
                 .withSuccessHandler(resolve)
                 .withFailureHandler(reject)
-                .getComparisonData(month1);
+                .getComparisonData(month1, isTeamOnly);
         }),
         new Promise((resolve, reject) => {
             google.script.run
                 .withSuccessHandler(resolve)
                 .withFailureHandler(reject)
-                .getComparisonData(month2);
+                .getComparisonData(month2, isTeamOnly);
         })
     ]).then(([data1, data2]) => {
-        displayComparison(month1, data1, month2, data2);
+        displayComparison(month1, data1, month2, data2, comparisonType);
         showLoading(false);
     }).catch(error => {
         showAlert('데이터 로드 실패: ' + error, 'error');
@@ -1529,5 +1650,45 @@ function displayComparison(month1, data1, month2, data2) {
     });
     
     area.innerHTML = html;
+}
+
+// ===== 페이지 로드 시 모든 select 요소에 다크모드 적용 =====
+document.addEventListener('DOMContentLoaded', function() {
+    // MutationObserver로 DOM 변경 감지
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // 추가된 요소가 select이거나 select를 포함하는 경우
+                    if (node.tagName === 'SELECT') {
+                        applyDarkModeToSelect(node);
+                    } else if (node.querySelectorAll) {
+                        const selects = node.querySelectorAll('select');
+                        selects.forEach(select => applyDarkModeToSelect(select));
+                    }
+                }
+            });
+        });
+    });
+    
+    // 옵저버 시작
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+});
+
+// ===== select 요소에 다크모드 스타일 적용 함수 =====
+function applyDarkModeToSelect(select) {
+    select.style.backgroundColor = '#0f0f0f';
+    select.style.color = '#f1f1f1';
+    select.style.border = '1px solid #3f3f3f';
+    
+    // 모든 option에도 스타일 적용
+    const options = select.querySelectorAll('option');
+    options.forEach(option => {
+        option.style.backgroundColor = '#0f0f0f';
+        option.style.color = '#f1f1f1';
+    });
 }
 </script>
