@@ -15,6 +15,25 @@
             <p style="margin-top: 15px; text-align: center;">처리중...</p>
         </div>
         
+        <!-- 사용자 정보 표시 영역 -->
+        <div class="user-info-bar">
+            <div class="user-info-content">
+                <div class="user-details">
+                    <span class="user-icon">👤</span>
+                    <div>
+                        <div class="user-name"><?= userInfo.name ?></div>
+                        <div class="user-email"><?= userEmail ?></div>
+                    </div>
+                </div>
+                <div class="user-permission">
+                    <span class="permission-badge level-<?= userInfo.level ?>">
+                        <?= userInfo.level === 3 ? '최고 관리자' : userInfo.level === 2 ? '중간 관리자' : '평가자' ?>
+                    </span>
+                    <span class="department"><?= userInfo.department ?></span>
+                </div>
+            </div>
+        </div>
+        
         <!-- 헤더 영역 -->
         <div class="header">
             <h1>성과 평가 시스템</h1>
@@ -23,11 +42,20 @@
         
         <!-- 역할 선택 버튼 -->
         <div class="role-selector">
-            <button class="role-btn" onclick="switchRole('management')">팀원/채널 관리</button>
-            <button class="role-btn" onclick="switchRole('teamlead')">1차 평가 (팀장)</button>
-            <button class="role-btn" onclick="switchRole('manager')">2차 평가 (관리자)</button>
-            <button class="role-btn" onclick="switchRole('executive')">최종 평가 (최종관리자)</button>
-            <button class="role-btn" onclick="switchRole('comparison')">전월 비교</button>
+            <? if (userInfo.level >= 2) { ?>
+            <button class="role-btn" onclick="switchRole('management')">⚙️ 팀원/채널 관리</button>
+            <? } ?>
+            <button class="role-btn" onclick="switchRole('teamlead')">📝 1차 평가 (팀장)</button>
+            <? if (userInfo.level >= 2) { ?>
+            <button class="role-btn" onclick="switchRole('manager')">🔄 2차 평가 (관리자)</button>
+            <? } ?>
+            <? if (userInfo.level >= 3) { ?>
+            <button class="role-btn" onclick="switchRole('executive')">✅ 최종 평가 (최종관리자)</button>
+            <? } ?>
+            <button class="role-btn" onclick="switchRole('comparison')">📈 전월 비교</button>
+            <? if (userInfo.level >= 3) { ?>
+            <button class="role-btn" onclick="switchRole('permission')">⚙️ 권한 관리</button>
+            <? } ?>
         </div>
         
         <!-- 알림 메시지 영역 -->
@@ -36,6 +64,7 @@
         <!-- 메인 콘텐츠 영역 -->
         <div class="content-area">
             <!-- 관리 화면 -->
+            <? if (userInfo.level >= 2) { ?>
             <div id="managementContent" class="role-content">
                 <h2>⚙️ 팀원 및 채널 관리</h2>
                 
@@ -133,10 +162,8 @@
                         <button class="btn btn-success" style="margin-top: 15px;" onclick="saveChannelMembers()">💾 선택한 팀원 저장</button>
                     </div>
                 </div>
-                
-                <!-- 디버깅 버튼 -->
-                <button class="btn btn-warning" style="margin-top: 20px;" onclick="checkDataStatus()">🔍 데이터 상태 확인</button>
             </div>
+            <? } ?>
             
             <!-- 1차 평가 (팀장) 화면 -->
             <div id="teamleadContent" class="role-content">
@@ -158,7 +185,7 @@
                 <div id="evaluationModeArea" style="display: none;">
                     <!-- 기존 평가 정보 표시 영역 -->
                     <div id="existingEvalInfo" class="eval-info-box" style="display: none;">
-                                                    <h3>📋 기존 평가 정보</h3>
+                        <h3>📋 기존 평가 정보</h3>
                         <div class="eval-info-item">
                             <span class="eval-info-label">최종 수정:</span>
                             <span class="eval-info-value" id="lastModified"></span>
@@ -172,6 +199,7 @@
                     
                     <!-- 신규/수정 평가 영역 -->
                     <div id="evaluationEditArea" style="display: none;">
+                        <? if (userInfo.level >= 2) { ?>
                         <div class="selector-group">
                             <div class="selector-item">
                                 <label>팀 선택:</label>
@@ -185,6 +213,7 @@
                                 </select>
                             </div>
                         </div>
+                        <? } ?>
                         
                         <div id="teamChannelsArea" style="display: none;">
                             <h3>📺 평가할 채널 선택</h3>
@@ -200,6 +229,7 @@
             </div>
             
             <!-- 2차 평가 (관리자) 화면 -->
+            <? if (userInfo.level >= 2) { ?>
             <div id="managerContent" class="role-content">
                 <h2>🔄 2차 평가 - 평가 조정</h2>
                 
@@ -209,14 +239,15 @@
                         <input type="month" id="evalMonth2nd">
                     </div>
                     <button class="btn btn-primary" onclick="loadSecondEvaluation()">📥 평가 데이터 불러오기</button>
-                    <button class="btn btn-warning" onclick="debugEvaluation()">🐛 데이터 확인 (디버깅)</button>
                 </div>
                 
                 <div id="secondEvaluationArea"></div>
                 <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluation()">✨ 2차 평가 저장</button>
             </div>
+            <? } ?>
             
             <!-- 최종 평가 (최종관리자) 화면 -->
+            <? if (userInfo.level >= 3) { ?>
             <div id="executiveContent" class="role-content">
                 <h2>✅ 최종 평가 - 성과금 책정</h2>
                 
@@ -231,10 +262,24 @@
                 <div id="finalEvaluationArea"></div>
                 <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluation()">🎉 이달의 평가 최종 확정</button>
             </div>
+            <? } ?>
             
             <!-- 전월 비교 화면 -->
             <div id="comparisonContent" class="role-content">
                 <h2>📈 전월 비교 분석</h2>
+                
+                <? if (userInfo.level === 1) { ?>
+                <div class="comparison-tabs">
+                    <button class="comparison-tab active" data-type="team" onclick="switchComparisonTab('team')">📊 내 팀 비교</button>
+                </div>
+                <? } else { ?>
+                <div class="comparison-tabs">
+                    <button class="comparison-tab active" data-type="all" onclick="switchComparisonTab('all')">📊 전체 비교</button>
+                    <? if (userInfo.teamId) { ?>
+                    <button class="comparison-tab" data-type="team" onclick="switchComparisonTab('team')">📊 내 팀 비교</button>
+                    <? } ?>
+                </div>
+                <? } ?>
                 
                 <div class="selector-group">
                     <div class="selector-item">
@@ -250,6 +295,53 @@
                 
                 <div id="comparisonArea"></div>
             </div>
+            
+            <!-- 권한 관리 화면 -->
+            <? if (userInfo.level >= 3) { ?>
+            <div id="permissionContent" class="role-content">
+                <h2>⚙️ 사용자 권한 관리</h2>
+                
+                <div class="management-section">
+                    <h3>➕ 새 사용자 추가</h3>
+                    <div class="management-grid" style="grid-template-columns: 1fr;">
+                        <div class="management-card">
+                            <div class="form-group">
+                                <label>이메일 (@awesomeent.kr)</label>
+                                <input type="email" id="newUserEmail" placeholder="user@awesomeent.kr">
+                            </div>
+                            <div class="form-group">
+                                <label>이름</label>
+                                <input type="text" id="newUserName" placeholder="홍길동">
+                            </div>
+                            <div class="form-group">
+                                <label>부서</label>
+                                <input type="text" id="newUserDept" placeholder="스튜디오 1팀">
+                            </div>
+                            <div class="form-group">
+                                <label>권한 레벨</label>
+                                <select id="newUserLevel">
+                                    <option value="1">1 - 1차 평가만</option>
+                                    <option value="2">2 - 1차/2차 평가</option>
+                                    <option value="3">3 - 전체 권한</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="addNewUser()">➕ 사용자 추가</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="management-section">
+                    <h3>👥 사용자 권한 목록</h3>
+                    <div id="permissionsList" class="permissions-list"></div>
+                </div>
+                
+                <div class="management-section">
+                    <h3>📋 액션 로그</h3>
+                    <button class="btn btn-primary" onclick="loadActionLogs()" style="margin-bottom: 15px;">🔄 로그 새로고침</button>
+                    <div id="actionLogsList" class="action-logs-list"></div>
+                </div>
+            </div>
+            <? } ?>
         </div>
     </div>
     
@@ -259,16 +351,241 @@
     <?!= include('evaluation'); ?>
     
     <script>
+        // ===== 사용자 정보 전역 변수 =====
+        const currentUser = {
+            email: '<?= userEmail ?>',
+            name: '<?= userInfo.name ?>',
+            department: '<?= userInfo.department ?>',
+            level: <?= userInfo.level ?>,
+            teamId: '<?= userInfo.teamId || '' ?>',
+            teamleadId: '<?= userInfo.teamleadId || '' ?>'
+        };
+        
+        // ===== 전월 비교 탭 전환 =====
+        function switchComparisonTab(type) {
+            document.querySelectorAll('.comparison-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
         // ===== 초기화 =====
         window.onload = function() {
             // 초기 데이터 로드
             loadInitialData();
             
-            // 기본적으로 관리 화면 표시
+            // 권한에 따른 첫 화면 설정
             setTimeout(() => {
-                document.querySelector('.role-btn').click();
+                if (currentUser.level >= 1) {
+                    // 1차 평가 권한이 있으면 1차 평가 화면으로
+                    switchRole('teamlead');
+                } else {
+                    // 권한이 없으면 첫 번째 가능한 화면으로
+                    document.querySelector('.role-btn').click();
+                }
             }, 100);
         };
+        
+        // ===== 권한 관리 함수들 =====
+        function loadPermissionsList() {
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(permissions) {
+                    displayPermissionsList(permissions);
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('권한 목록 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getPermissionsList();
+        }
+        
+        function displayPermissionsList(permissions) {
+            const listDiv = document.getElementById('permissionsList');
+            let html = `
+                <table class="evaluation-table">
+                    <thead>
+                        <tr>
+                            <th>이메일</th>
+                            <th>이름</th>
+                            <th>부서</th>
+                            <th>권한레벨</th>
+                            <th>상태</th>
+                            <th>등록일시</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            permissions.forEach(user => {
+                const levelText = user.level === 1 ? '1차 평가' : user.level === 2 ? '1-2차 평가' : '전체 권한';
+                const statusClass = user.active === 'Y' ? 'positive-change' : 'negative-change';
+                const statusText = user.active === 'Y' ? '활성' : '비활성';
+                
+                html += `
+                    <tr>
+                        <td>${user.email}</td>
+                        <td>${user.name}</td>
+                        <td>${user.department}</td>
+                        <td>
+                            <select onchange="updateUserLevel('${user.email}', this.value)" ${user.email === currentUser.email ? 'disabled' : ''}>
+                                <option value="1" ${user.level === 1 ? 'selected' : ''}>1 - 1차 평가만</option>
+                                <option value="2" ${user.level === 2 ? 'selected' : ''}>2 - 1차/2차 평가</option>
+                                <option value="3" ${user.level === 3 ? 'selected' : ''}>3 - 전체 권한</option>
+                            </select>
+                        </td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${user.registeredDate}</td>
+                        <td>
+                            <button class="btn ${user.active === 'Y' ? 'btn-danger' : 'btn-success'}" 
+                                    style="padding: 5px 10px; font-size: 12px;"
+                                    onclick="toggleUserStatus('${user.email}')"
+                                    ${user.email === currentUser.email ? 'disabled' : ''}>
+                                ${user.active === 'Y' ? '🔒 비활성화' : '🔓 활성화'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            listDiv.innerHTML = html;
+        }
+        
+        function addNewUser() {
+            const email = document.getElementById('newUserEmail').value.trim();
+            const name = document.getElementById('newUserName').value.trim();
+            const department = document.getElementById('newUserDept').value.trim();
+            const level = document.getElementById('newUserLevel').value;
+            
+            if (!email || !name || !department) {
+                showAlert('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            if (!email.endsWith('@awesomeent.kr')) {
+                showAlert('회사 이메일(@awesomeent.kr)만 등록 가능합니다.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        document.getElementById('newUserEmail').value = '';
+                        document.getElementById('newUserName').value = '';
+                        document.getElementById('newUserDept').value = '';
+                        document.getElementById('newUserLevel').value = '1';
+                        loadPermissionsList();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('사용자 추가 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .addUserPermission({
+                    email: email,
+                    name: name,
+                    department: department,
+                    level: parseInt(level)
+                });
+        }
+        
+        function updateUserLevel(email, newLevel) {
+            if (!confirm(`${email}의 권한을 변경하시겠습니까?`)) {
+                loadPermissionsList();
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    showAlert(result.message, result.success ? 'success' : 'error');
+                    loadPermissionsList();
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('권한 수정 실패: ' + error, 'error');
+                    loadPermissionsList();
+                    showLoading(false);
+                })
+                .updateUserPermission(email, parseInt(newLevel));
+        }
+        
+        function toggleUserStatus(email) {
+            const action = confirm(`${email}의 상태를 변경하시겠습니까?`);
+            if (!action) return;
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    showAlert(result.message, result.success ? 'success' : 'error');
+                    loadPermissionsList();
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('상태 변경 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .toggleUserActive(email);
+        }
+        
+        function loadActionLogs() {
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(logs) {
+                    displayActionLogs(logs);
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('액션 로그 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getActionLogs(50);
+        }
+        
+        function displayActionLogs(logs) {
+            const logsDiv = document.getElementById('actionLogsList');
+            
+            if (logs.length === 0) {
+                logsDiv.innerHTML = '<p style="text-align: center; color: #aaa;">액션 로그가 없습니다.</p>';
+                return;
+            }
+            
+            let html = `
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="evaluation-table">
+                        <thead>
+                            <tr>
+                                <th>일시</th>
+                                <th>사용자</th>
+                                <th>액션</th>
+                                <th>상세내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            logs.forEach(log => {
+                html += `
+                    <tr>
+                        <td>${log.timestamp}</td>
+                        <td>${log.user}</td>
+                        <td>${log.action}</td>
+                        <td>${log.details}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            logsDiv.innerHTML = html;
+        }
     </script>
 </body>
 </html>
