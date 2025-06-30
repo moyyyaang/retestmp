@@ -1,9 +1,102 @@
-// ===== 웹앱 기본 설정 =====
+// ===== 웹앱 기본 설정 (보안 강화) =====
 function doGet() {
-  return HtmlService.createTemplateFromFile('index')
-      .evaluate()
-      .setTitle('성과 평가 시스템')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  try {
+    // 실제 사용자 이메일 가져오기
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    // 로그 기록 (디버깅용)
+    console.log('접속 시도:', userEmail);
+    
+    // 이메일이 없거나 빈 문자열인 경우
+    if (!userEmail || userEmail === '') {
+      return HtmlService.createHtmlOutput(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>인증 필요</title>
+        </head>
+        <body style="background: #0f0f0f; color: #f1f1f1; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+          <div style="text-align: center; background: #181818; padding: 60px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <div style="font-size: 80px; margin-bottom: 30px;">🔒</div>
+            <h1 style="font-size: 32px; margin-bottom: 20px;">인증 필요</h1>
+            <p style="font-size: 18px; color: #aaa;">@awesomeent.kr 계정으로 로그인해주세요.</p>
+            <p style="margin-top: 30px; color: #666; font-size: 14px;">구글 계정으로 로그인 후 다시 시도해주세요.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+    
+    // 도메인 검증
+    if (!userEmail.endsWith('@awesomeent.kr')) {
+      return HtmlService.createHtmlOutput(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>접근 거부</title>
+        </head>
+        <body style="background: #0f0f0f; color: #f1f1f1; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+          <div style="text-align: center; background: #181818; padding: 60px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <div style="font-size: 80px; margin-bottom: 30px;">🚫</div>
+            <h1 style="font-size: 32px; margin-bottom: 20px; color: #ff6b6b;">접근 거부</h1>
+            <p style="font-size: 18px; color: #aaa;">@awesomeent.kr 도메인 사용자만 접근 가능합니다.</p>
+            <p style="margin-top: 20px; color: #666; font-size: 14px;">현재 로그인: ${userEmail}</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+    
+    // 사용자 권한 확인
+    const userInfo = getUserPermission(userEmail);
+    
+    // 권한이 없는 경우
+    if (!userInfo || userInfo.active !== 'Y') {
+      const noAccessTemplate = HtmlService.createTemplateFromFile('noAccess');
+      noAccessTemplate.userEmail = userEmail;
+      return noAccessTemplate.evaluate()
+          .setTitle('접근 권한 없음')
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    
+    // 권한이 있는 경우
+    const template = HtmlService.createTemplateFromFile('index');
+    template.userEmail = userEmail;
+    template.userInfo = userInfo;
+    
+    // 접속 로그 기록
+    try {
+      logAction('시스템 접속', `권한레벨: ${userInfo.level}, 부서: ${userInfo.department}`);
+    } catch (e) {
+      console.error('로그 기록 실패:', e);
+    }
+    
+    return template.evaluate()
+        .setTitle('성과 평가 시스템')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  } catch (error) {
+    console.error('doGet 오류:', error);
+    return HtmlService.createHtmlOutput(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>시스템 오류</title>
+      </head>
+      <body style="background: #0f0f0f; color: #f1f1f1; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: Arial;">
+        <div style="text-align: center; background: #181818; padding: 60px; border-radius: 20px;">
+          <div style="font-size: 80px; margin-bottom: 30px;">⚠️</div>
+          <h1 style="font-size: 32px; margin-bottom: 20px;">시스템 오류</h1>
+          <p style="font-size: 18px; color: #aaa;">일시적인 오류가 발생했습니다.</p>
+          <p style="margin-top: 20px; color: #666;">관리자에게 문의하세요: admin@awesomeent.kr</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
 }
 
 // HTML 파일 include 함수
@@ -25,7 +118,9 @@ const SHEET_NAMES = {
   EVAL_INFO: '평가정보',
   FIRST_EVAL: '1차평가',
   SECOND_EVAL: '2차평가',
-  FINAL_EVAL: '최종평가'
+  FINAL_EVAL: '최종평가',
+  USER_PERMISSIONS: '사용자권한',
+  ACTION_LOG: '액션로그'
 };
 
 // ===== 시트 초기화 함수 =====
@@ -93,15 +188,15 @@ function initializeSheets() {
   let teamleadSheet = ss.getSheetByName(SHEET_NAMES.TEAMLEADS);
   if (!teamleadSheet) {
     teamleadSheet = ss.insertSheet(SHEET_NAMES.TEAMLEADS);
-    teamleadSheet.getRange(1, 1, 1, 4).setValues([['팀장ID', '팀장명', '담당팀ID', '활성상태']]);
+    teamleadSheet.getRange(1, 1, 1, 5).setValues([['팀장ID', '팀장명', '담당팀ID', '이메일', '활성상태']]);
     const teamleads = [
-      ['TL001', '김팀장', 'team1', 'Y'],
-      ['TL002', '이팀장', 'team2', 'Y'],
-      ['TL003', '박팀장', 'team3', 'Y'],
-      ['TL004', '최팀장', 'team4', 'Y'],
-      ['TL005', '정팀장', 'team5', 'Y']
+      ['TL001', '김팀장', 'team1', 'teamlead1@awesomeent.kr', 'Y'],
+      ['TL002', '이팀장', 'team2', 'teamlead2@awesomeent.kr', 'Y'],
+      ['TL003', '박팀장', 'team3', 'teamlead3@awesomeent.kr', 'Y'],
+      ['TL004', '최팀장', 'team4', 'teamlead4@awesomeent.kr', 'Y'],
+      ['TL005', '정팀장', 'team5', 'teamlead5@awesomeent.kr', 'Y']
     ];
-    teamleadSheet.getRange(2, 1, teamleads.length, 4).setValues(teamleads);
+    teamleadSheet.getRange(2, 1, teamleads.length, 5).setValues(teamleads);
   }
   
   // 평가정보 시트
@@ -129,6 +224,28 @@ function initializeSheets() {
   if (!finalEvalSheet) {
     finalEvalSheet = ss.insertSheet(SHEET_NAMES.FINAL_EVAL);
     finalEvalSheet.getRange(1, 1, 1, 13).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '2차기여도', '1차성과금총액', '팀장성과율', '2차성과금(배분대상)', '기여도성과금', '실지급성과금', '최종확정일시']]);
+  }
+  
+  // 사용자권한 시트
+  let permissionSheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+  if (!permissionSheet) {
+    permissionSheet = ss.insertSheet(SHEET_NAMES.USER_PERMISSIONS);
+    permissionSheet.getRange(1, 1, 1, 6).setValues([['이메일', '이름', '부서', '권한레벨', '활성상태', '등록일시']]);
+    
+    // 샘플 권한 데이터
+    const samplePermissions = [
+      ['admin@awesomeent.kr', '관리자', '경영지원팀', 3, 'Y', new Date().toLocaleString('ko-KR')],
+      ['teamlead1@awesomeent.kr', '김팀장', '스튜디오 1팀', 1, 'Y', new Date().toLocaleString('ko-KR')],
+      ['manager@awesomeent.kr', '이부장', '콘텐츠사업부', 2, 'Y', new Date().toLocaleString('ko-KR')]
+    ];
+    permissionSheet.getRange(2, 1, samplePermissions.length, 6).setValues(samplePermissions);
+  }
+  
+  // 액션로그 시트
+  let actionLogSheet = ss.getSheetByName(SHEET_NAMES.ACTION_LOG);
+  if (!actionLogSheet) {
+    actionLogSheet = ss.insertSheet(SHEET_NAMES.ACTION_LOG);
+    actionLogSheet.getRange(1, 1, 1, 5).setValues([['일시', '사용자', '액션', '상세내용', 'IP주소']]);
   }
 }
 
@@ -208,12 +325,13 @@ function getTeamLeadsData() {
     const teamleads = [];
     
     for (let i = 1; i < data.length; i++) {
-      const [teamleadId, teamleadName, teamId, active] = data[i];
+      const [teamleadId, teamleadName, teamId, email, active] = data[i];
       if (active === 'Y') {
         teamleads.push({
           id: teamleadId,
           name: teamleadName,
-          teamId: teamId
+          teamId: teamId,
+          email: email || ''
         });
       }
     }
@@ -269,6 +387,107 @@ function getChannelMembersData(channelId) {
     return channelMembers;
   } catch (error) {
     console.error('채널 멤버 데이터 가져오기 오류:', error);
+    return [];
+  }
+}
+
+// ===== 권한 관리 함수들 (수정) =====
+function getUserPermission(email) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === email) {
+        // 팀장 정보도 함께 가져오기
+        const teamleadInfo = getTeamleadByEmail(email);
+        
+        return {
+          email: data[i][0],
+          name: data[i][1],
+          department: data[i][2],
+          level: data[i][3],
+          active: data[i][4],
+          teamId: teamleadInfo ? teamleadInfo.teamId : null,
+          teamleadId: teamleadInfo ? teamleadInfo.id : null
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('권한 조회 오류:', error);
+    return null;
+  }
+}
+
+// 이메일로 팀장 정보 가져오기
+function getTeamleadByEmail(email) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.TEAMLEADS);
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][3] === email && data[i][4] === 'Y') {
+        return {
+          id: data[i][0],
+          name: data[i][1],
+          teamId: data[i][2],
+          email: data[i][3]
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('팀장 정보 조회 오류:', error);
+    return null;
+  }
+}
+
+// ===== 보안 강화된 checkPermission 함수 =====
+function checkPermission(requiredLevel, teamId = null) {
+  const userEmail = Session.getActiveUser().getEmail();
+  
+  if (!userEmail || !userEmail.endsWith('@awesomeent.kr')) {
+    throw new Error('유효하지 않은 사용자입니다.');
+  }
+  
+  const userInfo = getUserPermission(userEmail);
+  
+  if (!userInfo || userInfo.active !== 'Y') {
+    throw new Error('접근 권한이 없습니다.');
+  }
+  
+  if (userInfo.level < requiredLevel) {
+    throw new Error('권한이 부족합니다.');
+  }
+  
+  // 팀 권한 체크 (레벨 1인 경우)
+  if (userInfo.level === 1 && teamId && userInfo.teamId !== teamId) {
+    throw new Error('해당 팀의 데이터에 접근할 권한이 없습니다.');
+  }
+  
+  return userInfo;
+}
+
+// ===== 팀별 데이터 필터링 함수들 =====
+function getTeamChannels(teamId) {
+  try {
+    const channels = getChannelsData();
+    return channels.filter(channel => channel.teamId === teamId);
+  } catch (error) {
+    console.error('팀 채널 조회 오류:', error);
+    return [];
+  }
+}
+
+function getTeamMembers(teamId) {
+  try {
+    const members = getMembersData();
+    return members.filter(member => member.teamId === teamId);
+  } catch (error) {
+    console.error('팀 멤버 조회 오류:', error);
     return [];
   }
 }
@@ -556,6 +775,24 @@ function updateChannelMembers(channelId, memberIds) {
 // ===== 평가 관련 함수들 =====
 function saveFirstEvaluation(evaluationData) {
   try {
+    const userInfo = checkPermission(1);
+    
+    // 팀장인 경우 자신의 팀 데이터만 저장 가능
+    if (userInfo.level === 1) {
+      // 평가 채널이 자신의 팀 채널인지 확인
+      const teamChannels = getTeamChannels(userInfo.teamId);
+      const teamChannelIds = teamChannels.map(ch => ch.id);
+      
+      if (!teamChannelIds.includes(evaluationData.channelId)) {
+        throw new Error('자신의 팀 채널만 평가할 수 있습니다.');
+      }
+      
+      // 평가자 ID가 본인인지 확인
+      if (evaluationData.evaluatorId !== userInfo.teamleadId) {
+        throw new Error('본인의 평가만 작성/수정할 수 있습니다.');
+      }
+    }
+    
     const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
     
     console.log('1차 평가 저장 시작:', evaluationData);
@@ -593,6 +830,8 @@ function saveFirstEvaluation(evaluationData) {
       sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 12).setValues(newRows);
       console.log('저장된 행 수:', newRows.length);
     }
+    
+    logAction('1차 평가 저장', `${evaluationData.evalMonth} - ${evaluationData.channelName}`);
     
     return { success: true, message: '1차 평가가 저장되었습니다.' };
   } catch (error) {
@@ -656,6 +895,7 @@ function getFirstEvaluationData(evalMonth = null) {
 // ===== 2차 평가 데이터 조회 수정 =====
 function getSecondEvaluationData(evalMonth = null) {
   try {
+    const userInfo = checkPermission(2); // 2차 평가 권한 필요
     const sheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
     const data = sheet.getDataRange().getValues();
     const targetMonth = String(evalMonth || new Date().toISOString().slice(0, 7));
@@ -668,6 +908,14 @@ function getSecondEvaluationData(evalMonth = null) {
       const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, contribution2, achievement, comment1, comment2, channelComment] = data[i];
       
       if (String(month) === targetMonth) {
+        // 레벨 1 사용자는 자신의 팀 채널만 조회 가능
+        if (userInfo.level === 1 && userInfo.teamId) {
+          const channel = getChannelsData().find(ch => ch.id === channelId);
+          if (!channel || channel.teamId !== userInfo.teamId) {
+            continue;
+          }
+        }
+        
         if (!evaluations[channelId]) {
           evaluations[channelId] = {
             channelId: channelId,
@@ -809,6 +1057,8 @@ function getFirstEvaluationByTeamlead(evalMonth, teamleadId) {
 
 function saveSecondEvaluation(evaluationData) {
   try {
+    checkPermission(2); // 2차 평가 권한 필요
+    
     const sheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
     const evalMonth = String(evaluationData.evalMonth || new Date().toISOString().slice(0, 7));
     
@@ -847,6 +1097,8 @@ function saveSecondEvaluation(evaluationData) {
       sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
     }
     
+    logAction('2차 평가 저장', `${evalMonth}`);
+    
     return { success: true, message: '2차 평가가 저장되었습니다.' };
   } catch (error) {
     console.error('2차 평가 저장 오류:', error);
@@ -856,6 +1108,8 @@ function saveSecondEvaluation(evaluationData) {
 
 function saveFinalEvaluation(channelData) {
   try {
+    checkPermission(3); // 최종 평가 권한 필요
+    
     const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
     const evalMonth = String(channelData.evalMonth || new Date().toISOString().slice(0, 7));
     const timestamp = new Date().toLocaleString('ko-KR');
@@ -898,6 +1152,8 @@ function saveFinalEvaluation(channelData) {
       sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
     }
     
+    logAction('최종 평가 확정', `${evalMonth} - ${newRows.length}건`);
+    
     return { success: true, message: '최종 평가가 확정되었습니다.' };
   } catch (error) {
     console.error('최종 평가 저장 오류:', error);
@@ -905,28 +1161,119 @@ function saveFinalEvaluation(channelData) {
   }
 }
 
-// ===== 초기 데이터 로드 =====
-function getInitialData() {
-  const teams = getTeamsData();
-  const members = getMembersData();
-  const channels = getChannelsData();
-  const teamleads = getTeamLeadsData();
-  
-  return {
-    teams: teams,
-    members: members,
-    channels: channels,
-    teamleads: teamleads
-  };
+// ===== 액션 로그 조회 =====
+function getActionLogs(limit = 50) {
+  try {
+    checkPermission(3); // 최고 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.ACTION_LOG);
+    const data = sheet.getDataRange().getValues();
+    const logs = [];
+    
+    // 최근 로그부터 표시 (역순)
+    const startIndex = Math.max(1, data.length - limit);
+    for (let i = data.length - 1; i >= startIndex; i--) {
+      logs.push({
+        timestamp: data[i][0],
+        user: data[i][1],
+        action: data[i][2],
+        details: data[i][3],
+        ip: data[i][4] || '-'
+      });
+    }
+    
+    return logs;
+  } catch (error) {
+    console.error('액션 로그 조회 오류:', error);
+    return [];
+  }
 }
 
-// ===== 전월 비교 데이터 조회 함수 =====
-function getComparisonData(evalMonth) {
+// ===== 초기 데이터 로드 함수 수정 =====
+function getInitialData() {
   try {
+    const userEmail = Session.getActiveUser().getEmail();
+    if (!userEmail || !userEmail.endsWith('@awesomeent.kr')) {
+      throw new Error('유효하지 않은 사용자입니다.');
+    }
+    
+    const teams = getTeamsData();
+    const members = getMembersData();
+    const channels = getChannelsData();
+    const teamleads = getTeamLeadsData();
+    
+    const userInfo = getUserPermission(userEmail);
+    
+    if (!userInfo) {
+      throw new Error('사용자 권한 정보를 찾을 수 없습니다.');
+    }
+    
+    // 레벨 1 사용자는 자신의 팀 데이터만 볼 수 있음
+    let filteredData = {
+      teams: teams,
+      members: members,
+      channels: channels,
+      teamleads: teamleads,
+      currentUser: userInfo
+    };
+    
+    if (userInfo.level === 1 && userInfo.teamId) {
+      filteredData.channels = channels.filter(ch => ch.teamId === userInfo.teamId);
+      filteredData.members = members.filter(m => m.teamId === userInfo.teamId);
+      // 자신의 팀장 정보만
+      filteredData.teamleads = teamleads.filter(tl => tl.id === userInfo.teamleadId);
+    }
+    
+    return filteredData;
+  } catch (error) {
+    console.error('초기 데이터 로드 오류:', error);
+    throw error;
+  }
+}
+
+// ===== 전월 비교 데이터 조회 함수 수정 =====
+function getComparisonData(evalMonth, isTeamOnly = false) {
+  try {
+    const userInfo = checkPermission(1); // 최소 1차 평가 권한 필요
     const monthStr = String(evalMonth);
     
     // 1차/2차 평가 데이터
-    const evaluations = getFirstEvaluationData(monthStr);
+    const evaluations = {};
+    const firstEvalSheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
+    const firstEvalData = firstEvalSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < firstEvalData.length; i++) {
+      const [month, channelId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId, channelComment] = firstEvalData[i];
+      
+      if (String(month) === monthStr) {
+        // 팀 필터링 (레벨 1이고 팀 전용 모드인 경우)
+        if (isTeamOnly && userInfo.level === 1 && userInfo.teamId) {
+          const channel = getChannelsData().find(ch => ch.id === channelId);
+          if (!channel || channel.teamId !== userInfo.teamId) {
+            continue;
+          }
+        }
+        
+        if (!evaluations[channelId]) {
+          evaluations[channelId] = {
+            channelId: channelId,
+            channelName: channelName,
+            channelComment: channelComment || '',
+            members: []
+          };
+        }
+        
+        evaluations[channelId].members.push({
+          id: memberId,
+          name: memberName,
+          teamName: teamName,
+          mm: mm,
+          contribution1: contribution1,
+          achievement: achievement,
+          comment1: comment1
+        });
+      }
+    }
     
     // 최종 평가 데이터
     const finalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
@@ -939,6 +1286,14 @@ function getComparisonData(evalMonth) {
              calcAmount, finalAmount, timestamp] = finalData[i];
       
       if (String(month) === monthStr) {
+        // 팀 필터링
+        if (isTeamOnly && userInfo.level === 1 && userInfo.teamId) {
+          const channel = getChannelsData().find(ch => ch.id === channelId);
+          if (!channel || channel.teamId !== userInfo.teamId) {
+            continue;
+          }
+        }
+        
         if (!finalEval[channelId]) {
           finalEval[channelId] = {
             channelName: channelName,
@@ -957,5 +1312,124 @@ function getComparisonData(evalMonth) {
   } catch (error) {
     console.error('비교 데이터 조회 오류:', error);
     return { evaluations: {}, finalEval: {} };
+  }
+}
+
+function logAction(action, details) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.ACTION_LOG);
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    sheet.appendRow([
+      new Date().toLocaleString('ko-KR'),
+      userEmail,
+      action,
+      details,
+      '' // IP 주소는 Apps Script에서 직접 가져올 수 없음
+    ]);
+  } catch (error) {
+    console.error('액션 로그 기록 실패:', error);
+  }
+}
+
+// ===== 권한 관리 UI 함수들 =====
+function getPermissionsList() {
+  try {
+    checkPermission(3); // 최고 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    const data = sheet.getDataRange().getValues();
+    const permissions = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      permissions.push({
+        email: data[i][0],
+        name: data[i][1],
+        department: data[i][2],
+        level: data[i][3],
+        active: data[i][4],
+        registeredDate: data[i][5]
+      });
+    }
+    
+    return permissions;
+  } catch (error) {
+    console.error('권한 목록 조회 오류:', error);
+    return [];
+  }
+}
+
+function addUserPermission(userData) {
+  try {
+    checkPermission(3); // 최고 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    
+    // 중복 확인
+    const existingData = sheet.getDataRange().getValues();
+    for (let i = 1; i < existingData.length; i++) {
+      if (existingData[i][0] === userData.email) {
+        return { success: false, message: '이미 등록된 이메일입니다.' };
+      }
+    }
+    
+    sheet.appendRow([
+      userData.email,
+      userData.name,
+      userData.department,
+      userData.level,
+      'Y',
+      new Date().toLocaleString('ko-KR')
+    ]);
+    
+    logAction('권한 추가', `${userData.email} - 레벨 ${userData.level}`);
+    
+    return { success: true, message: '사용자 권한이 추가되었습니다.' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function updateUserPermission(email, newLevel) {
+  try {
+    checkPermission(3); // 최고 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === email) {
+        sheet.getRange(i + 1, 4).setValue(newLevel);
+        logAction('권한 수정', `${email} - 레벨 ${newLevel}`);
+        return { success: true, message: '권한이 수정되었습니다.' };
+      }
+    }
+    
+    return { success: false, message: '사용자를 찾을 수 없습니다.' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function toggleUserActive(email) {
+  try {
+    checkPermission(3); // 최고 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === email) {
+        const currentStatus = data[i][4];
+        const newStatus = currentStatus === 'Y' ? 'N' : 'Y';
+        sheet.getRange(i + 1, 5).setValue(newStatus);
+        logAction('권한 상태 변경', `${email} - ${newStatus === 'Y' ? '활성화' : '비활성화'}`);
+        return { success: true, message: `사용자가 ${newStatus === 'Y' ? '활성화' : '비활성화'}되었습니다.` };
+      }
+    }
+    
+    return { success: false, message: '사용자를 찾을 수 없습니다.' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
   }
 }
