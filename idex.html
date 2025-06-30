@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!-- Chart.js CDN 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +15,15 @@
         <div class="loading" id="loadingSpinner">
             <div class="spinner"></div>
             <p style="margin-top: 15px; text-align: center;">처리중...</p>
+        </div>
+        
+        <!-- 실시간 알림 팝업 -->
+        <div id="notificationPopup" class="notification-popup">
+            <div class="notification-header">
+                <span>🔔 알림</span>
+                <button onclick="closeNotification()" class="close-btn">×</button>
+            </div>
+            <div id="notificationContent" class="notification-content"></div>
         </div>
         
         <!-- 사용자 정보 표시 영역 -->
@@ -42,33 +53,26 @@
         
         <!-- 역할 선택 버튼 -->
         <div class="role-selector">
-            <? if (userInfo.level >= 2) { ?>
             <button class="role-btn" onclick="switchRole('management')">⚙️ 팀원/채널 관리</button>
-            <? } ?>
             <button class="role-btn" onclick="switchRole('teamlead')">📝 1차 평가 (팀장)</button>
             <? if (userInfo.level >= 2) { ?>
             <button class="role-btn" onclick="switchRole('manager')">🔄 2차 평가 (관리자)</button>
             <? } ?>
             <? if (userInfo.level >= 3) { ?>
             <button class="role-btn" onclick="switchRole('executive')">✅ 최종 평가 (최종관리자)</button>
-            <? } ?>
-            <button class="role-btn" onclick="switchRole('comparison')">📈 전월 비교</button>
-            <? if (userInfo.level >= 3) { ?>
+            <button class="role-btn" onclick="switchRole('dashboard')">📊 대시보드</button>
             <button class="role-btn" onclick="switchRole('permission')">⚙️ 권한 관리</button>
             <? } ?>
         </div>
         
-        <!-- 알림 메시지 영역 -->
-        <div id="alertBox" class="alert"></div>
-        
         <!-- 메인 콘텐츠 영역 -->
         <div class="content-area">
             <!-- 관리 화면 -->
-            <? if (userInfo.level >= 2) { ?>
             <div id="managementContent" class="role-content">
                 <h2>⚙️ 팀원 및 채널 관리</h2>
                 
                 <!-- 팀 필터 -->
+                <? if (userInfo.level >= 2) { ?>
                 <div class="team-filter-section">
                     <label>팀 필터:</label>
                     <select id="managementTeamFilter" onchange="filterManagementByTeam()">
@@ -80,6 +84,11 @@
                         <option value="team5">스튜디오 5팀</option>
                     </select>
                 </div>
+                <? } else { ?>
+                <div class="team-filter-section">
+                    <p style="color: #aaa;">👥 <?= userInfo.department ?> 관리</p>
+                </div>
+                <? } ?>
                 
                 <div class="management-grid">
                     <!-- 팀원 관리 카드 -->
@@ -163,7 +172,6 @@
                     </div>
                 </div>
             </div>
-            <? } ?>
             
             <!-- 1차 평가 (팀장) 화면 -->
             <div id="teamleadContent" class="role-content">
@@ -172,7 +180,29 @@
                 <div class="selector-group">
                     <div class="selector-item">
                         <label>평가월:</label>
-                        <input type="month" id="evalMonth" onchange="checkExistingEvaluation()">
+                        <div style="display: flex; gap: 10px;">
+                            <select id="evalYear" onchange="updateEvalMonth()">
+                                <option value="2024">2024년</option>
+                                <option value="2025">2025년</option>
+                                <option value="2026">2026년</option>
+                                <option value="2027">2027년</option>
+                            </select>
+                            <select id="evalMonthSelect" onchange="updateEvalMonth()">
+                                <option value="01">1월</option>
+                                <option value="02">2월</option>
+                                <option value="03">3월</option>
+                                <option value="04">4월</option>
+                                <option value="05">5월</option>
+                                <option value="06">6월</option>
+                                <option value="07">7월</option>
+                                <option value="08">8월</option>
+                                <option value="09">9월</option>
+                                <option value="10">10월</option>
+                                <option value="11">11월</option>
+                                <option value="12">12월</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="evalMonth">
                     </div>
                     <div class="selector-item">
                         <label>평가자 (팀장):</label>
@@ -199,7 +229,6 @@
                     
                     <!-- 신규/수정 평가 영역 -->
                     <div id="evaluationEditArea" style="display: none;">
-                        <? if (userInfo.level >= 2) { ?>
                         <div class="selector-group">
                             <div class="selector-item">
                                 <label>팀 선택:</label>
@@ -213,7 +242,6 @@
                                 </select>
                             </div>
                         </div>
-                        <? } ?>
                         
                         <div id="teamChannelsArea" style="display: none;">
                             <h3>📺 평가할 채널 선택</h3>
@@ -236,9 +264,56 @@
                 <div class="selector-group">
                     <div class="selector-item">
                         <label>평가월:</label>
-                        <input type="month" id="evalMonth2nd">
+                        <div style="display: flex; gap: 10px;">
+                            <select id="evalYear2nd" onchange="updateEvalMonth2nd()">
+                                <option value="2024">2024년</option>
+                                <option value="2025">2025년</option>
+                                <option value="2026">2026년</option>
+                                <option value="2027">2027년</option>
+                            </select>
+                            <select id="evalMonthSelect2nd" onchange="updateEvalMonth2nd()">
+                                <option value="01">1월</option>
+                                <option value="02">2월</option>
+                                <option value="03">3월</option>
+                                <option value="04">4월</option>
+                                <option value="05">5월</option>
+                                <option value="06">6월</option>
+                                <option value="07">7월</option>
+                                <option value="08">8월</option>
+                                <option value="09">9월</option>
+                                <option value="10">10월</option>
+                                <option value="11">11월</option>
+                                <option value="12">12월</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="evalMonth2nd">
                     </div>
                     <button class="btn btn-primary" onclick="loadSecondEvaluation()">📥 평가 데이터 불러오기</button>
+                </div>
+                
+                <!-- 팀 필터 추가 -->
+                <div id="secondEvalTeamFilter" style="display: none; margin: 20px 0;">
+                    <div class="team-filter-section">
+                        <h4>🔍 팀 필터 선택</h4>
+                        <div class="team-checkbox-area">
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team1" checked> 스튜디오 1팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team2" checked> 스튜디오 2팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team3" checked> 스튜디오 3팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team4" checked> 스튜디오 4팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team5" checked> 스튜디오 5팀
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" onclick="applySecondEvalTeamFilter()" style="margin-top: 10px;">적용</button>
+                    </div>
                 </div>
                 
                 <div id="secondEvaluationArea"></div>
@@ -251,12 +326,65 @@
             <div id="executiveContent" class="role-content">
                 <h2>✅ 최종 평가 - 성과금 책정</h2>
                 
+                <!-- 평가 진행 상태 표시 -->
+                <div id="evaluationStatusSection" class="evaluation-status-section">
+                    <h3>📊 현재 평가 진행 상태</h3>
+                    <div id="evaluationStatusGrid" class="evaluation-status-grid"></div>
+                </div>
+                
                 <div class="selector-group">
                     <div class="selector-item">
                         <label>평가월:</label>
-                        <input type="month" id="evalMonthFinal">
+                        <div style="display: flex; gap: 10px;">
+                            <select id="evalYearFinal" onchange="updateEvalMonthFinal()">
+                                <option value="2024">2024년</option>
+                                <option value="2025">2025년</option>
+                                <option value="2026">2026년</option>
+                                <option value="2027">2027년</option>
+                            </select>
+                            <select id="evalMonthSelectFinal" onchange="updateEvalMonthFinal()">
+                                <option value="01">1월</option>
+                                <option value="02">2월</option>
+                                <option value="03">3월</option>
+                                <option value="04">4월</option>
+                                <option value="05">5월</option>
+                                <option value="06">6월</option>
+                                <option value="07">7월</option>
+                                <option value="08">8월</option>
+                                <option value="09">9월</option>
+                                <option value="10">10월</option>
+                                <option value="11">11월</option>
+                                <option value="12">12월</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="evalMonthFinal">
                     </div>
                     <button class="btn btn-primary" onclick="loadFinalEvaluation()">📥 평가 데이터 불러오기</button>
+                </div>
+                
+                <!-- 팀 필터 추가 -->
+                <div id="finalEvalTeamFilter" style="display: none; margin: 20px 0;">
+                    <div class="team-filter-section">
+                        <h4>🔍 팀 필터 선택</h4>
+                        <div class="team-checkbox-area">
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team1" checked> 스튜디오 1팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team2" checked> 스튜디오 2팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team3" checked> 스튜디오 3팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team4" checked> 스튜디오 4팀
+                            </label>
+                            <label class="team-checkbox-item">
+                                <input type="checkbox" value="team5" checked> 스튜디오 5팀
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" onclick="applyFinalEvalTeamFilter()" style="margin-top: 10px;">적용</button>
+                    </div>
                 </div>
                 
                 <div id="finalEvaluationArea"></div>
@@ -264,37 +392,130 @@
             </div>
             <? } ?>
             
-            <!-- 전월 비교 화면 -->
-            <div id="comparisonContent" class="role-content">
-                <h2>📈 전월 비교 분석</h2>
+            <!-- 대시보드 화면 (이전 전월 비교) -->
+            <? if (userInfo.level >= 3) { ?>
+            <div id="dashboardContent" class="role-content">
+                <h2>📊 대시보드</h2>
                 
-                <? if (userInfo.level === 1) { ?>
                 <div class="comparison-tabs">
-                    <button class="comparison-tab active" data-type="team" onclick="switchComparisonTab('team')">📊 내 팀 비교</button>
-                </div>
-                <? } else { ?>
-                <div class="comparison-tabs">
-                    <button class="comparison-tab active" data-type="all" onclick="switchComparisonTab('all')">📊 전체 비교</button>
-                    <? if (userInfo.teamId) { ?>
-                    <button class="comparison-tab" data-type="team" onclick="switchComparisonTab('team')">📊 내 팀 비교</button>
-                    <? } ?>
-                </div>
-                <? } ?>
-                
-                <div class="selector-group">
-                    <div class="selector-item">
-                        <label>비교 기준월:</label>
-                        <input type="month" id="compareMonth1">
-                    </div>
-                    <div class="selector-item">
-                        <label>비교 대상월:</label>
-                        <input type="month" id="compareMonth2">
-                    </div>
-                    <button class="btn btn-primary" onclick="loadComparisonData()">🔍 비교 분석 실행</button>
+                    <button class="comparison-tab active" data-type="comparison" onclick="switchDashboardTab('comparison')">📈 전월 비교</button>
+                    <button class="comparison-tab" data-type="individual" onclick="switchDashboardTab('individual')">👤 인원별 분석</button>
+                    <button class="comparison-tab" data-type="trend" onclick="switchDashboardTab('trend')">📊 트렌드 분석</button>
                 </div>
                 
-                <div id="comparisonArea"></div>
+                <!-- 전월 비교 섹션 -->
+                <div id="comparisonSection" class="dashboard-section active">
+                    <div class="selector-group">
+                        <div class="selector-item">
+                            <label>비교 기준월:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="compareYear1" onchange="updateCompareMonth1()">
+                                    <option value="2024">2024년</option>
+                                    <option value="2025">2025년</option>
+                                    <option value="2026">2026년</option>
+                                </select>
+                                <select id="compareMonth1Select" onchange="updateCompareMonth1()">
+                                    <option value="01">1월</option>
+                                    <option value="02">2월</option>
+                                    <option value="03">3월</option>
+                                    <option value="04">4월</option>
+                                    <option value="05">5월</option>
+                                    <option value="06">6월</option>
+                                    <option value="07">7월</option>
+                                    <option value="08">8월</option>
+                                    <option value="09">9월</option>
+                                    <option value="10">10월</option>
+                                    <option value="11">11월</option>
+                                    <option value="12">12월</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="selector-item">
+                            <label>비교 대상월:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="compareYear2" onchange="updateCompareMonth2()">
+                                    <option value="2024">2024년</option>
+                                    <option value="2025">2025년</option>
+                                    <option value="2026">2026년</option>
+                                </select>
+                                <select id="compareMonth2Select" onchange="updateCompareMonth2()">
+                                    <option value="01">1월</option>
+                                    <option value="02">2월</option>
+                                    <option value="03">3월</option>
+                                    <option value="04">4월</option>
+                                    <option value="05">5월</option>
+                                    <option value="06">6월</option>
+                                    <option value="07">7월</option>
+                                    <option value="08">8월</option>
+                                    <option value="09">9월</option>
+                                    <option value="10">10월</option>
+                                    <option value="11">11월</option>
+                                    <option value="12">12월</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadComparisonData()">🔍 비교 분석 실행</button>
+                    </div>
+                    <div id="comparisonArea"></div>
+                </div>
+                
+                <!-- 인원별 분석 섹션 -->
+                <div id="individualAnalysisSection" class="dashboard-section">
+                    <div class="selector-group">
+                        <div class="selector-item">
+                            <label>팀 선택:</label>
+                            <select id="analysisTeamSelect" onchange="loadTeamMembersForAnalysis()">
+                                <option value="">팀을 선택하세요</option>
+                                <option value="team1">스튜디오 1팀</option>
+                                <option value="team2">스튜디오 2팀</option>
+                                <option value="team3">스튜디오 3팀</option>
+                                <option value="team4">스튜디오 4팀</option>
+                                <option value="team5">스튜디오 5팀</option>
+                            </select>
+                        </div>
+                        <div class="selector-item">
+                            <label>팀원 선택:</label>
+                            <select id="analysisMemberSelect">
+                                <option value="">팀원을 선택하세요</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadIndividualAnalysis()">📈 분석 실행</button>
+                    </div>
+                    <div id="individualAnalysisArea"></div>
+                </div>
+                
+                <!-- 트렌드 분석 섹션 -->
+                <div id="trendAnalysisSection" class="dashboard-section">
+                    <div class="selector-group">
+                        <div class="selector-item">
+                            <label>분석 유형:</label>
+                            <select id="trendType" onchange="updateTrendOptions()">
+                                <option value="team">팀별 트렌드</option>
+                                <option value="channel">채널별 트렌드</option>
+                            </select>
+                        </div>
+                        <div class="selector-item">
+                            <label>분석 대상:</label>
+                            <select id="trendTarget">
+                                <option value="">선택하세요</option>
+                            </select>
+                        </div>
+                        <div class="selector-item">
+                            <label>분석 기간:</label>
+                            <select id="trendPeriod">
+                                <option value="3">최근 3개월</option>
+                                <option value="6">최근 6개월</option>
+                                <option value="12">최근 1년</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadTrendAnalysis()">📊 트렌드 분석</button>
+                    </div>
+                    <div id="trendChartArea">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
             </div>
+            <? } ?>
             
             <!-- 권한 관리 화면 -->
             <? if (userInfo.level >= 3) { ?>
@@ -361,29 +582,452 @@
             teamleadId: '<?= userInfo.teamleadId || '' ?>'
         };
         
-        // ===== 전월 비교 탭 전환 =====
-        function switchComparisonTab(type) {
+        // ===== 알림 시스템 =====
+        function showNotification(message, type = 'info') {
+            const popup = document.getElementById('notificationPopup');
+            const content = document.getElementById('notificationContent');
+            
+            popup.className = `notification-popup show ${type}`;
+            content.innerHTML = message;
+            
+            // 5초 후 자동 닫기
+            setTimeout(() => {
+                closeNotification();
+            }, 5000);
+        }
+        
+        function closeNotification() {
+            const popup = document.getElementById('notificationPopup');
+            popup.classList.remove('show');
+        }
+        
+        // ===== 대시보드 탭 전환 =====
+        function switchDashboardTab(type) {
             document.querySelectorAll('.comparison-tab').forEach(tab => {
                 tab.classList.remove('active');
+                if (tab.dataset.type === type) {
+                    tab.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
+            
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            if (type === 'comparison') {
+                document.getElementById('comparisonSection').classList.add('active');
+            } else if (type === 'individual') {
+                document.getElementById('individualAnalysisSection').classList.add('active');
+            } else if (type === 'trend') {
+                document.getElementById('trendAnalysisSection').classList.add('active');
+                updateTrendOptions();
+            }
+        }
+        
+        // ===== 평가월 업데이트 함수 =====
+        function updateEvalMonth() {
+            const year = document.getElementById('evalYear').value;
+            const month = document.getElementById('evalMonthSelect').value;
+            document.getElementById('evalMonth').value = `${year}-${month}`;
+            
+            if (document.getElementById('teamleadSelect').value) {
+                checkExistingEvaluation();
+            }
+        }
+        
+        function updateEvalMonth2nd() {
+            const year = document.getElementById('evalYear2nd').value;
+            const month = document.getElementById('evalMonthSelect2nd').value;
+            document.getElementById('evalMonth2nd').value = `${year}-${month}`;
+        }
+        
+        function updateEvalMonthFinal() {
+            const year = document.getElementById('evalYearFinal').value;
+            const month = document.getElementById('evalMonthSelectFinal').value;
+            document.getElementById('evalMonthFinal').value = `${year}-${month}`;
+            
+            // 평가 상태 자동 로드
+            loadEvaluationStatus();
+        }
+        
+        function updateCompareMonth1() {
+            const year = document.getElementById('compareYear1').value;
+            const month = document.getElementById('compareMonth1Select').value;
+            // 값 저장
+            window.compareMonth1 = `${year}-${month}`;
+        }
+        
+        function updateCompareMonth2() {
+            const year = document.getElementById('compareYear2').value;
+            const month = document.getElementById('compareMonth2Select').value;
+            // 값 저장
+            window.compareMonth2 = `${year}-${month}`;
+        }
+        
+        // ===== 평가 상태 로드 =====
+        function loadEvaluationStatus() {
+            const evalMonth = document.getElementById('evalMonthFinal').value;
+            if (!evalMonth) return;
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(statusData) {
+                    displayEvaluationStatus(statusData);
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    console.error('평가 상태 로드 실패:', error);
+                    showLoading(false);
+                })
+                .getEvaluationStatus(evalMonth);
+        }
+        
+        // ===== 평가 상태 표시 =====
+        function displayEvaluationStatus(statusData) {
+            const grid = document.getElementById('evaluationStatusGrid');
+            let html = '';
+            
+            for (const teamId in statusData) {
+                const team = statusData[teamId];
+                const statusClass = team.stage === '최종완료' ? 'status-complete' : 
+                                   team.stage === '2차완료' ? 'status-second' : 
+                                   team.stage === '1차완료' ? 'status-first' : 'status-pending';
+                
+                html += `
+                    <div class="status-card ${statusClass}">
+                        <h4>${team.name}</h4>
+                        <div class="status-stage">${team.stage || '미진행'}</div>
+                        <div class="status-details">
+                            <span>채널: ${team.channelCount}개</span>
+                            <span>팀원: ${team.memberCount}명</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            grid.innerHTML = html;
+        }
+        
+        // ===== 팀원 분석 로드 =====
+        function loadTeamMembersForAnalysis() {
+            const teamId = document.getElementById('analysisTeamSelect').value;
+            const memberSelect = document.getElementById('analysisMemberSelect');
+            
+            if (!teamId) {
+                memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+                return;
+            }
+            
+            const teamMembers = evaluationData.members.filter(m => m.teamId === teamId);
+            memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+            
+            teamMembers.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = member.name;
+                memberSelect.appendChild(option);
+            });
+        }
+        
+        // ===== 개인별 분석 실행 =====
+        function loadIndividualAnalysis() {
+            const memberId = document.getElementById('analysisMemberSelect').value;
+            if (!memberId) {
+                showAlert('분석할 팀원을 선택해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    displayIndividualAnalysis(data);
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('개인 분석 데이터 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getIndividualYearlyData(memberId);
+        }
+        
+        // ===== 개인별 분석 표시 =====
+        function displayIndividualAnalysis(yearlyData) {
+            const area = document.getElementById('individualAnalysisArea');
+            const memberName = document.getElementById('analysisMemberSelect').selectedOptions[0].text;
+            
+            let html = `<h3>📊 ${memberName}님의 연간 성과 분석</h3>`;
+            
+            // 연간 요약
+            let totalAmount = 0;
+            let monthCount = 0;
+            const monthlyData = [];
+            
+            for (const month in yearlyData) {
+                const data = yearlyData[month];
+                if (data.finalAmount) {
+                    totalAmount += data.finalAmount;
+                    monthCount++;
+                }
+                monthlyData.push({
+                    month: month,
+                    amount: data.finalAmount || 0,
+                    mm: data.mm || 0,
+                    contribution: data.contribution2 || data.contribution1 || 0
+                });
+            }
+            
+            html += `
+                <div class="summary-box">
+                    <h4>연간 요약</h4>
+                    <div class="summary-item">
+                        <span class="summary-label">총 성과금:</span>
+                        <span class="summary-value amount">${(totalAmount/10000).toFixed(1)}만원</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">평균 월 성과금:</span>
+                        <span class="summary-value amount">${monthCount > 0 ? (totalAmount/monthCount/10000).toFixed(1) : 0}만원</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">평가 완료 월:</span>
+                        <span class="summary-value">${monthCount}개월</span>
+                    </div>
+                </div>
+            `;
+            
+            // 월별 상세
+            html += `
+                <h4>월별 상세 내역</h4>
+                <table class="evaluation-table">
+                    <thead>
+                        <tr>
+                            <th>평가월</th>
+                            <th>채널명</th>
+                            <th>투입 MM</th>
+                            <th>기여도</th>
+                            <th>성과금</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            monthlyData.sort((a, b) => a.month.localeCompare(b.month));
+            
+            monthlyData.forEach(data => {
+                const monthData = yearlyData[data.month];
+                html += `
+                    <tr>
+                        <td>${data.month}</td>
+                        <td>${monthData.channelName || '-'}</td>
+                        <td>${data.mm}</td>
+                        <td>${data.contribution}%</td>
+                        <td class="amount">${data.amount ? (data.amount/10000).toFixed(1) + '만원' : '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            
+            // 차트 영역
+            html += `
+                <div style="margin-top: 30px;">
+                    <canvas id="individualChart"></canvas>
+                </div>
+            `;
+            
+            area.innerHTML = html;
+            
+            // 차트 그리기
+            setTimeout(() => {
+                drawIndividualChart(monthlyData);
+            }, 100);
+        }
+        
+        // ===== 개인별 차트 그리기 =====
+        function drawIndividualChart(monthlyData) {
+            const ctx = document.getElementById('individualChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthlyData.map(d => d.month),
+                    datasets: [{
+                        label: '월별 성과금 (만원)',
+                        data: monthlyData.map(d => d.amount / 10000),
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '월별 성과금 추이'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '만원';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ===== 트렌드 옵션 업데이트 =====
+        function updateTrendOptions() {
+            const type = document.getElementById('trendType').value;
+            const targetSelect = document.getElementById('trendTarget');
+            
+            targetSelect.innerHTML = '<option value="">선택하세요</option>';
+            
+            if (type === 'team') {
+                for (const teamId in evaluationData.teams) {
+                    const option = document.createElement('option');
+                    option.value = teamId;
+                    option.textContent = evaluationData.teams[teamId].name;
+                    targetSelect.appendChild(option);
+                }
+            } else {
+                evaluationData.channels.forEach(channel => {
+                    const option = document.createElement('option');
+                    option.value = channel.id;
+                    option.textContent = channel.name;
+                    targetSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // ===== 트렌드 분석 로드 =====
+        function loadTrendAnalysis() {
+            const type = document.getElementById('trendType').value;
+            const target = document.getElementById('trendTarget').value;
+            const period = document.getElementById('trendPeriod').value;
+            
+            if (!target) {
+                showAlert('분석 대상을 선택해주세요.', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    drawTrendChart(data, type);
+                    showLoading(false);
+                })
+                .withFailureHandler(function(error) {
+                    showAlert('트렌드 데이터 로드 실패: ' + error, 'error');
+                    showLoading(false);
+                })
+                .getTrendData(type, target, period);
+        }
+        
+        // ===== 트렌드 차트 그리기 =====
+        function drawTrendChart(data, type) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            // 기존 차트 제거
+            if (window.trendChartInstance) {
+                window.trendChartInstance.destroy();
+            }
+            
+            window.trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: '총 성과금 (만원)',
+                        data: data.amounts.map(a => a / 10000),
+                        backgroundColor: 'rgba(26, 115, 232, 0.5)',
+                        borderColor: '#1a73e8',
+                        borderWidth: 1
+                    }, {
+                        label: '평균 기여도 (%)',
+                        data: data.contributions,
+                        type: 'line',
+                        yAxisID: 'y1',
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: type === 'team' ? '팀별 성과 트렌드' : '채널별 성과 트렌드'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '만원';
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
         
         // ===== 초기화 =====
         window.onload = function() {
+            console.log('페이지 로드 시작 - currentUser:', currentUser);
+            
             // 초기 데이터 로드
             loadInitialData();
             
             // 권한에 따른 첫 화면 설정
             setTimeout(() => {
                 if (currentUser.level >= 1) {
-                    // 1차 평가 권한이 있으면 1차 평가 화면으로
+                    console.log('1차 평가 화면으로 전환');
                     switchRole('teamlead');
+                    
+                    if (currentUser.level === 1 && currentUser.teamId) {
+                        setTimeout(() => {
+                            const teamSelect = document.getElementById('evaluationTeamSelect');
+                            if (teamSelect) {
+                                for (let option of teamSelect.options) {
+                                    if (option.value && option.value !== currentUser.teamId) {
+                                        option.disabled = true;
+                                        option.style.color = '#666';
+                                    }
+                                }
+                                teamSelect.value = currentUser.teamId;
+                                loadTeamChannels();
+                            }
+                        }, 50);
+                    }
                 } else {
-                    // 권한이 없으면 첫 번째 가능한 화면으로
                     document.querySelector('.role-btn').click();
                 }
-            }, 100);
+            }, 50);
+            
+            // 알림 테스트
+            showNotification('🎉 성과 평가 시스템에 오신 것을 환영합니다!', 'success');
         };
         
         // ===== 권한 관리 함수들 =====
@@ -474,7 +1118,7 @@
             google.script.run
                 .withSuccessHandler(function(result) {
                     if (result.success) {
-                        showAlert(result.message, 'success');
+                        showNotification(result.message, 'success');
                         document.getElementById('newUserEmail').value = '';
                         document.getElementById('newUserName').value = '';
                         document.getElementById('newUserDept').value = '';
@@ -506,7 +1150,7 @@
             showLoading(true);
             google.script.run
                 .withSuccessHandler(function(result) {
-                    showAlert(result.message, result.success ? 'success' : 'error');
+                    showNotification(result.message, result.success ? 'success' : 'error');
                     loadPermissionsList();
                     showLoading(false);
                 })
@@ -525,7 +1169,7 @@
             showLoading(true);
             google.script.run
                 .withSuccessHandler(function(result) {
-                    showAlert(result.message, result.success ? 'success' : 'error');
+                    showNotification(result.message, result.success ? 'success' : 'error');
                     loadPermissionsList();
                     showLoading(false);
                 })
