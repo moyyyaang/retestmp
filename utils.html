@@ -12,15 +12,16 @@ let evaluationData = {
     currentChannelMembers: [],
     existingEvaluations: {},
     selectedChannels: [],
-    evaluationMode: 'new', // 'new', 'view', 'edit'
+    evaluationMode: 'new',
     currentEvalMonth: '',
     currentTeamleadId: '',
-    currentEvalInfo: null
+    currentEvalInfo: null,
+    secondEvalTeamFilter: null,
+    finalEvalTeamFilter: null
 };
 
 // ===== 다크모드 강제 적용 함수 =====
 function forceDarkMode() {
-    // 모든 select, input, textarea 요소에 다크모드 스타일 강제 적용
     const elements = document.querySelectorAll('select, input, textarea');
     elements.forEach(el => {
         el.style.backgroundColor = '#0f0f0f';
@@ -28,7 +29,6 @@ function forceDarkMode() {
         el.style.border = '1px solid #3f3f3f';
     });
     
-    // 특히 문제가 되는 팀 선택과 팀원 선택 드롭다운 강제 적용
     const problemSelects = document.querySelectorAll('[id^="teamSelect_"], [id^="memberSelect_"], #managementTeamFilter, #evaluationTeamSelect');
     problemSelects.forEach(select => {
         select.style.backgroundColor = '#0f0f0f !important';
@@ -40,12 +40,11 @@ function forceDarkMode() {
     });
 }
 
-// DOM이 변경될 때마다 다크모드 재적용
+// DOM 변경 감지
 const observer = new MutationObserver(function(mutations) {
     forceDarkMode();
 });
 
-// 옵저버 시작
 observer.observe(document.body, {
     childList: true,
     subtree: true
@@ -56,42 +55,69 @@ function loadInitialData() {
     showLoading(true);
     google.script.run
         .withSuccessHandler(function(data) {
+            console.log('초기 데이터 수신:', data);
             evaluationData.teams = data.teams;
             evaluationData.members = data.members;
             evaluationData.channels = data.channels;
             evaluationData.teamleads = data.teamleads;
             
-            // 각종 선택 옵션 업데이트
             updateAllSelectors();
             
-            // 현재 월과 전월 설정
             const currentDate = new Date();
-            const currentMonth = currentDate.toISOString().slice(0, 7);
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const currentMonthValue = currentDate.toISOString().slice(0, 7);
             
-            // 전월 계산
             const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
             const prevMonth = prevDate.toISOString().slice(0, 7);
             
-            document.getElementById('evalMonth').value = currentMonth;
-            document.getElementById('evalMonth2nd').value = currentMonth;
-            document.getElementById('evalMonthFinal').value = currentMonth;
-            
-            // 전월 비교 기본값 설정
-            document.getElementById('compareMonth1').value = prevMonth;
-            document.getElementById('compareMonth2').value = currentMonth;
-            
-            // 1차 평가 화면에서 기존 평가 확인 (자동)
-            if (document.getElementById('teamleadSelect').value) {
-                checkExistingEvaluation();
+            // 각 평가 년/월 설정
+            if (document.getElementById('evalYear')) {
+                document.getElementById('evalYear').value = currentYear;
+                document.getElementById('evalMonthSelect').value = currentMonth;
+                document.getElementById('evalMonth').value = currentMonthValue;
             }
             
-            // 다크모드 강제 적용
+            if (document.getElementById('evalYear2nd')) {
+                document.getElementById('evalYear2nd').value = currentYear;
+                document.getElementById('evalMonthSelect2nd').value = currentMonth;
+                document.getElementById('evalMonth2nd').value = currentMonthValue;
+            }
+            
+            if (document.getElementById('evalYearFinal')) {
+                document.getElementById('evalYearFinal').value = currentYear;
+                document.getElementById('evalMonthSelectFinal').value = currentMonth;
+                document.getElementById('evalMonthFinal').value = currentMonthValue;
+            }
+            
+            if (currentUser.level >= 3) {
+                if (document.getElementById('compareYear1')) {
+                    const prevYear = prevDate.getFullYear();
+                    const prevMonthStr = String(prevDate.getMonth() + 1).padStart(2, '0');
+                    document.getElementById('compareYear1').value = prevYear;
+                    document.getElementById('compareMonth1Select').value = prevMonthStr;
+                    window.compareMonth1 = prevMonth;
+                    
+                    document.getElementById('compareYear2').value = currentYear;
+                    document.getElementById('compareMonth2Select').value = currentMonth;
+                    window.compareMonth2 = currentMonthValue;
+                }
+            }
+            
+            if (document.getElementById('teamleadSelect') && document.getElementById('teamleadSelect').value && 
+                document.getElementById('evalMonth') && document.getElementById('evalMonth').value) {
+                setTimeout(() => {
+                    checkExistingEvaluation();
+                }, 50);
+            }
+            
             setTimeout(forceDarkMode, 100);
             
             showLoading(false);
+            console.log('초기 데이터 로드 완료');
         })
         .withFailureHandler(function(error) {
-            showAlert('데이터 로드 실패: ' + error, 'error');
+            showNotification('데이터 로드 실패: ' + error, 'error');
             showLoading(false);
         })
         .getInitialData();
@@ -124,12 +150,10 @@ function updateAllSelectors() {
             option.textContent = `${teamlead.name} (${evaluationData.teams[teamlead.teamId].name})`;
             option.dataset.email = teamlead.email;
             
-            // 현재 사용자와 이메일이 같으면 자동 선택
             if (currentUser.email === teamlead.email) {
                 option.selected = true;
             }
             
-            // 권한 레벨 1인 경우 본인만 선택 가능
             if (currentUser.level === 1 && currentUser.email !== teamlead.email) {
                 option.disabled = true;
             }
@@ -137,25 +161,29 @@ function updateAllSelectors() {
             teamleadSelect.appendChild(option);
         });
         
-        // 자동 선택된 경우 평가 확인
         if (teamleadSelect.value) {
+            console.log('팀장 자동 선택됨:', teamleadSelect.value);
             setTimeout(() => {
-                if (typeof checkExistingEvaluation === 'function') {
-                    checkExistingEvaluation();
+                if (document.getElementById('evalMonth') && document.getElementById('evalMonth').value) {
+                    console.log('평가월도 설정됨, checkExistingEvaluation 호출');
+                    if (typeof checkExistingEvaluation === 'function') {
+                        checkExistingEvaluation();
+                    }
                 }
-            }, 100);
+            }, 50);
         }
     }
     
-    // 채널 선택 옵션 업데이트
     updateChannelSelectors();
     
-    // 관리 화면 리스트 업데이트
-    updateMemberList();
-    updateChannelList();
+    if (document.getElementById('memberList')) {
+        updateMemberList();
+    }
+    if (document.getElementById('channelList')) {
+        updateChannelList();
+    }
     
-    // 다크모드 강제 적용
-    setTimeout(forceDarkMode, 100);
+    setTimeout(forceDarkMode, 50);
 }
 
 function updateChannelSelectors() {
@@ -170,7 +198,6 @@ function updateChannelSelectors() {
         });
     }
     
-    // 다크모드 적용
     forceDarkMode();
 }
 
@@ -184,47 +211,574 @@ function showLoading(show) {
     }
 }
 
+// ===== 알림 표시 (새로운 알림 시스템 사용) =====
+function showAlert(message, type) {
+    showNotification(message, type);
+}
+
+// ===== 평가 상태 로드 =====
+function loadEvaluationStatus() {
+    const evalMonth = document.getElementById('evalMonthFinal').value;
+    if (!evalMonth) return;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(statusData) {
+            displayEvaluationStatus(statusData);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            console.error('평가 상태 로드 실패:', error);
+            showLoading(false);
+        })
+        .getEvaluationStatus(evalMonth);
+}
+
+// ===== 평가 상태 표시 =====
+function displayEvaluationStatus(statusData) {
+    const grid = document.getElementById('evaluationStatusGrid');
+    let html = '';
+    
+    for (const teamId in statusData) {
+        const team = statusData[teamId];
+        const statusClass = team.stage === '최종완료' ? 'status-complete' : 
+                           team.stage === '2차완료' ? 'status-second' : 
+                           team.stage === '1차완료' ? 'status-first' : 'status-pending';
+        
+        html += `
+            <div class="status-card ${statusClass}">
+                <h4>${team.name}</h4>
+                <div class="status-stage">${team.stage || '미진행'}</div>
+                <div class="status-details">
+                    <span>채널: ${team.channelCount}개</span>
+                    <span>팀원: ${team.memberCount}명</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    grid.innerHTML = html;
+}
+
+// ===== 팀원 분석 로드 =====
+function loadTeamMembersForAnalysis() {
+    const teamId = document.getElementById('analysisTeamSelect').value;
+    const memberSelect = document.getElementById('analysisMemberSelect');
+    
+    if (!teamId) {
+        memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+        return;
+    }
+    
+    const teamMembers = evaluationData.members.filter(m => m.teamId === teamId);
+    memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
+    
+    teamMembers.forEach(member => {
+        const option = document.createElement('option');
+        option.value = member.id;
+        option.textContent = member.name;
+        memberSelect.appendChild(option);
+    });
+}
+
+// ===== 개인별 분석 실행 =====
+function loadIndividualAnalysis() {
+    const memberId = document.getElementById('analysisMemberSelect').value;
+    if (!memberId) {
+        showNotification('분석할 팀원을 선택해주세요.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            displayIndividualAnalysis(data);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('개인 분석 데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getIndividualYearlyData(memberId);
+}
+
+// ===== 개인별 분석 표시 =====
+function displayIndividualAnalysis(yearlyData) {
+    const area = document.getElementById('individualAnalysisArea');
+    const memberName = document.getElementById('analysisMemberSelect').selectedOptions[0].text;
+    
+    let html = `<h3>📊 ${memberName}님의 연간 성과 분석</h3>`;
+    
+    let totalAmount = 0;
+    let monthCount = 0;
+    const monthlyData = [];
+    
+    for (const month in yearlyData) {
+        const data = yearlyData[month];
+        if (data.finalAmount) {
+            totalAmount += data.finalAmount;
+            monthCount++;
+        }
+        monthlyData.push({
+            month: month,
+            amount: data.finalAmount || 0,
+            mm: data.mm || 0,
+            contribution: data.contribution2 || data.contribution1 || 0
+        });
+    }
+    
+    html += `
+        <div class="summary-box">
+            <h4>연간 요약</h4>
+            <div class="summary-item">
+                <span class="summary-label">총 성과금:</span>
+                <span class="summary-value amount">${(totalAmount/10000).toFixed(1)}만원</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">평균 월 성과금:</span>
+                <span class="summary-value amount">${monthCount > 0 ? (totalAmount/monthCount/10000).toFixed(1) : 0}만원</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">평가 완료 월:</span>
+                <span class="summary-value">${monthCount}개월</span>
+            </div>
+        </div>
+    `;
+    
+    html += `
+        <h4>월별 상세 내역</h4>
+        <table class="evaluation-table">
+            <thead>
+                <tr>
+                    <th>평가월</th>
+                    <th>채널명</th>
+                    <th>투입 MM</th>
+                    <th>기여도</th>
+                    <th>성과금</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    monthlyData.sort((a, b) => a.month.localeCompare(b.month));
+    
+    monthlyData.forEach(data => {
+        const monthData = yearlyData[data.month];
+        html += `
+            <tr>
+                <td>${data.month}</td>
+                <td>${monthData.channelName || '-'}</td>
+                <td>${data.mm}</td>
+                <td>${data.contribution}%</td>
+                <td class="amount">${data.amount ? (data.amount/10000).toFixed(1) + '만원' : '-'}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    
+    html += `
+        <div style="margin-top: 30px;">
+            <canvas id="individualChart"></canvas>
+        </div>
+    `;
+    
+    area.innerHTML = html;
+    
+    setTimeout(() => {
+        drawIndividualChart(monthlyData);
+    }, 100);
+}
+
+// ===== 개인별 차트 그리기 =====
+function drawIndividualChart(monthlyData) {
+    const ctx = document.getElementById('individualChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(d => d.month),
+            datasets: [{
+                label: '월별 성과금 (만원)',
+                data: monthlyData.map(d => d.amount / 10000),
+                borderColor: '#1a73e8',
+                backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '월별 성과금 추이'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '만원';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ===== 트렌드 옵션 업데이트 =====
+function updateTrendOptions() {
+    const type = document.getElementById('trendType').value;
+    const targetSelect = document.getElementById('trendTarget');
+    
+    targetSelect.innerHTML = '<option value="">선택하세요</option>';
+    
+    if (type === 'team') {
+        for (const teamId in evaluationData.teams) {
+            const option = document.createElement('option');
+            option.value = teamId;
+            option.textContent = evaluationData.teams[teamId].name;
+            targetSelect.appendChild(option);
+        }
+    } else {
+        evaluationData.channels.forEach(channel => {
+            const option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = channel.name;
+            targetSelect.appendChild(option);
+        });
+    }
+}
+
+// ===== 트렌드 분석 로드 =====
+function loadTrendAnalysis() {
+    const type = document.getElementById('trendType').value;
+    const target = document.getElementById('trendTarget').value;
+    const period = document.getElementById('trendPeriod').value;
+    
+    if (!target) {
+        showNotification('분석 대상을 선택해주세요.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            drawTrendChart(data, type);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('트렌드 데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getTrendData(type, target, period);
+}
+
+// ===== 트렌드 차트 그리기 =====
+function drawTrendChart(data, type) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    
+    if (window.trendChartInstance) {
+        window.trendChartInstance.destroy();
+    }
+    
+    window.trendChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: '총 성과금 (만원)',
+                data: data.amounts.map(a => a / 10000),
+                backgroundColor: 'rgba(26, 115, 232, 0.5)',
+                borderColor: '#1a73e8',
+                borderWidth: 1,
+                yAxisID: 'y'
+            }, {
+                label: '평균 기여도 (%)',
+                data: data.contributions,
+                type: 'line',
+                yAxisID: 'y1',
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: type === 'team' ? '팀별 성과 트렌드' : '채널별 성과 트렌드'
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: {
+                        callback: function(value) {
+                            return value + '만원';
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ===== 권한 관리 함수들 =====
+function loadPermissionsList() {
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(permissions) {
+            displayPermissionsList(permissions);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('권한 목록 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getPermissionsList();
+}
+
+function displayPermissionsList(permissions) {
+    const listDiv = document.getElementById('permissionsList');
+    let html = `
+        <table class="evaluation-table">
+            <thead>
+                <tr>
+                    <th>이메일</th>
+                    <th>이름</th>
+                    <th>부서</th>
+                    <th>권한레벨</th>
+                    <th>상태</th>
+                    <th>등록일시</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    permissions.forEach(user => {
+        const levelText = user.level === 1 ? '1차 평가' : user.level === 2 ? '1-2차 평가' : '전체 권한';
+        const statusClass = user.active === 'Y' ? 'positive-change' : 'negative-change';
+        const statusText = user.active === 'Y' ? '활성' : '비활성';
+        
+        html += `
+            <tr>
+                <td>${user.email}</td>
+                <td>${user.name}</td>
+                <td>${user.department}</td>
+                <td>
+                    <select onchange="updateUserLevel('${user.email}', this.value)" ${user.email === currentUser.email ? 'disabled' : ''}>
+                        <option value="1" ${user.level === 1 ? 'selected' : ''}>1 - 1차 평가만</option>
+                        <option value="2" ${user.level === 2 ? 'selected' : ''}>2 - 1차/2차 평가</option>
+                        <option value="3" ${user.level === 3 ? 'selected' : ''}>3 - 전체 권한</option>
+                    </select>
+                </td>
+                <td class="${statusClass}">${statusText}</td>
+                <td>${user.registeredDate}</td>
+                <td>
+                    <button class="btn ${user.active === 'Y' ? 'btn-danger' : 'btn-success'}" 
+                            style="padding: 5px 10px; font-size: 12px;"
+                            onclick="toggleUserStatus('${user.email}')"
+                            ${user.email === currentUser.email ? 'disabled' : ''}>
+                        ${user.active === 'Y' ? '🔒 비활성화' : '🔓 활성화'}
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    listDiv.innerHTML = html;
+}
+
+function addNewUser() {
+    const email = document.getElementById('newUserEmail').value.trim();
+    const name = document.getElementById('newUserName').value.trim();
+    const department = document.getElementById('newUserDept').value.trim();
+    const level = document.getElementById('newUserLevel').value;
+    
+    if (!email || !name || !department) {
+        showNotification('모든 필드를 입력해주세요.', 'error');
+        return;
+    }
+    
+    if (!email.endsWith('@awesomeent.kr')) {showNotification('회사 이메일(@awesomeent.kr)만 등록 가능합니다.', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                showNotification(result.message, 'success');
+                document.getElementById('newUserEmail').value = '';
+                document.getElementById('newUserName').value = '';
+                document.getElementById('newUserDept').value = '';
+                document.getElementById('newUserLevel').value = '1';
+                loadPermissionsList();
+            } else {
+                showNotification(result.message, 'error');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('사용자 추가 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .addUserPermission({
+            email: email,
+            name: name,
+            department: department,
+            level: parseInt(level)
+        });
+}
+
+function updateUserLevel(email, newLevel) {
+    if (!confirm(`${email}의 권한을 변경하시겠습니까?`)) {
+        loadPermissionsList();
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            showNotification(result.message, result.success ? 'success' : 'error');
+            loadPermissionsList();
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('권한 수정 실패: ' + error, 'error');
+            loadPermissionsList();
+            showLoading(false);
+        })
+        .updateUserPermission(email, parseInt(newLevel));
+}
+
+function toggleUserStatus(email) {
+    const action = confirm(`${email}의 상태를 변경하시겠습니까?`);
+    if (!action) return;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(result) {
+            showNotification(result.message, result.success ? 'success' : 'error');
+            loadPermissionsList();
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('상태 변경 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .toggleUserActive(email);
+}
+
+function loadActionLogs() {
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(logs) {
+            displayActionLogs(logs);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('액션 로그 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getActionLogs(50);
+}
+
+function displayActionLogs(logs) {
+    const logsDiv = document.getElementById('actionLogsList');
+    
+    if (logs.length === 0) {
+        logsDiv.innerHTML = '<p style="text-align: center; color: #aaa;">액션 로그가 없습니다.</p>';
+        return;
+    }
+    
+    let html = `
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table class="evaluation-table">
+                <thead>
+                    <tr>
+                        <th>일시</th>
+                        <th>사용자</th>
+                        <th>액션</th>
+                        <th>상세내용</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    logs.forEach(log => {
+        html += `
+            <tr>
+                <td>${log.timestamp}</td>
+                <td>${log.user}</td>
+                <td>${log.action}</td>
+                <td>${log.details}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    logsDiv.innerHTML = html;
+}
+
 // ===== 역할 전환 함수 =====
 function switchRole(role) {
-    // 모든 역할 버튼과 콘텐츠 비활성화
     document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
     
-    // 선택된 역할 활성화
     if (event && event.target) {
         event.target.classList.add('active');
     }
     
-    // 해당 역할의 콘텐츠 표시
     if (role === 'management') {
-        if (currentUser.level < 2) {
-            showAlert('팀원/채널 관리 권한이 없습니다.', 'error');
-            return;
-        }
         document.getElementById('managementContent').classList.add('active');
     } else if (role === 'teamlead') {
         if (currentUser.level < 1) {
-            showAlert('1차 평가 권한이 없습니다.', 'error');
+            showNotification('1차 평가 권한이 없습니다.', 'error');
             return;
         }
         document.getElementById('teamleadContent').classList.add('active');
     } else if (role === 'manager') {
         if (currentUser.level < 2) {
-            showAlert('2차 평가 권한이 없습니다.', 'error');
+            showNotification('2차 평가 권한이 없습니다.', 'error');
             return;
         }
         document.getElementById('managerContent').classList.add('active');
     } else if (role === 'executive') {
         if (currentUser.level < 3) {
-            showAlert('최종 평가 권한이 없습니다.', 'error');
+            showNotification('최종 평가 권한이 없습니다.', 'error');
             return;
         }
         document.getElementById('executiveContent').classList.add('active');
-    } else if (role === 'comparison') {
-        document.getElementById('comparisonContent').classList.add('active');
+    } else if (role === 'dashboard') {
+        if (currentUser.level < 3) {
+            showNotification('대시보드 접근 권한이 없습니다.', 'error');
+            return;
+        }
+        document.getElementById('dashboardContent').classList.add('active');
     } else if (role === 'permission') {
         if (currentUser.level < 3) {
-            showAlert('권한 관리 접근 권한이 없습니다.', 'error');
+            showNotification('권한 관리 접근 권한이 없습니다.', 'error');
             return;
         }
         const permissionContent = document.getElementById('permissionContent');
@@ -234,20 +788,7 @@ function switchRole(role) {
         }
     }
     
-    // 역할 전환 후 다크모드 재적용
-    setTimeout(forceDarkMode, 100);
-}
-
-// ===== 유틸리티 함수 =====
-function showAlert(message, type) {
-    const alertBox = document.getElementById('alertBox');
-    alertBox.textContent = message;
-    alertBox.className = `alert ${type}`;
-    alertBox.style.display = 'block';
-    
-    setTimeout(() => {
-        alertBox.style.display = 'none';
-    }, 5000);
+    setTimeout(forceDarkMode, 20);
 }
 
 // ===== 디버깅 함수 =====
@@ -261,22 +802,55 @@ function checkDataStatus() {
                 console.log('샘플 데이터:', status[sheet].sample);
             }
             showLoading(false);
-            showAlert('콘솔에서 데이터 상태를 확인하세요.', 'success');
+            showNotification('콘솔에서 데이터 상태를 확인하세요.', 'success');
         })
         .withFailureHandler(function(error) {
-            showAlert('상태 확인 실패: ' + error, 'error');
+            showNotification('상태 확인 실패: ' + error, 'error');
             showLoading(false);
         })
         .checkDataStatus();
 }
 
-// ===== 페이지 로드 시 다크모드 적용 =====
+// ===== 페이지 로드 시 초기화 =====
 document.addEventListener('DOMContentLoaded', function() {
     forceDarkMode();
 });
 
-// 모든 Ajax 응답 후에도 다크모드 재적용
 window.addEventListener('load', function() {
     forceDarkMode();
 });
+
+// ===== window.onload 함수 =====
+window.onload = function() {
+    console.log('페이지 로드 시작 - currentUser:', currentUser);
+    
+    loadInitialData();
+    
+    setTimeout(() => {
+        if (currentUser.level >= 1) {
+            console.log('1차 평가 화면으로 전환');
+            switchRole('teamlead');
+            
+            if (currentUser.level === 1 && currentUser.teamId) {
+                setTimeout(() => {
+                    const teamSelect = document.getElementById('evaluationTeamSelect');
+                    if (teamSelect) {
+                        for (let option of teamSelect.options) {
+                            if (option.value && option.value !== currentUser.teamId) {
+                                option.disabled = true;
+                                option.style.color = '#666';
+                            }
+                        }
+                        teamSelect.value = currentUser.teamId;
+                        if (typeof loadTeamChannels === 'function') {
+                            loadTeamChannels();
+                        }
+                    }
+                }, 50);
+            }
+        } else {
+            document.querySelector('.role-btn').click();
+        }
+    }, 50);
+};
 </script>
