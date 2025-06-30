@@ -1126,6 +1126,7 @@ function saveFinalEvaluation(channelData) {
     const newRows = [];
     for (const channelId in channelData.channels) {
       const channel = channelData.channels[channelId];
+      // totalAmount는 이미 원 단위로 변환되어 들어옴
       const distributionAmount = channel.totalAmount * (100 - channel.leaderPercentage) / 100;
       
       channel.members.forEach(member => {
@@ -1138,11 +1139,11 @@ function saveFinalEvaluation(channelData) {
           member.name,
           member.teamName,
           member.contribution2,
-          channel.totalAmount,
+          channel.totalAmount,      // 원 단위
           channel.leaderPercentage,
-          distributionAmount,
-          Math.round(calcAmount),
-          member.finalAmount,
+          distributionAmount,       // 원 단위
+          Math.round(calcAmount),   // 원 단위
+          member.finalAmount,       // 원 단위
           timestamp
         ]);
       });
@@ -1431,5 +1432,319 @@ function toggleUserActive(email) {
     return { success: false, message: '사용자를 찾을 수 없습니다.' };
   } catch (error) {
     return { success: false, message: error.toString() };
+  }
+}
+
+// ===== 채널 멤버 일괄 조회 함수 추가 =====
+function getMultipleChannelMembersData(channelIds) {
+  try {
+    const result = {};
+    const mapSheet = ss.getSheetByName(SHEET_NAMES.MEMBER_CHANNEL_MAP);
+    const memberSheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
+    const teamSheet = ss.getSheetByName(SHEET_NAMES.TEAMS);
+    
+    const mapData = mapSheet.getDataRange().getValues();
+    const memberData = memberSheet.getDataRange().getValues();
+    const teamData = teamSheet.getDataRange().getValues();
+    
+    const teams = {};
+    for (let i = 1; i < teamData.length; i++) {
+      teams[teamData[i][0]] = teamData[i][1];
+    }
+    
+    const members = {};
+    for (let i = 1; i < memberData.length; i++) {
+      if (memberData[i][3] === 'Y') {
+        members[memberData[i][0]] = {
+          name: memberData[i][1],
+          teamId: memberData[i][2],
+          teamName: teams[memberData[i][2]]
+        };
+      }
+    }
+    
+    // 각 채널별로 멤버 수집
+    channelIds.forEach(channelId => {
+      result[channelId] = [];
+      
+      for (let i = 1; i < mapData.length; i++) {
+        if (mapData[i][1] === channelId && mapData[i][2] === 'Y') {
+          const memberId = mapData[i][0];
+          if (members[memberId]) {
+            result[channelId].push({
+              id: memberId,
+              name: members[memberId].name,
+              teamId: members[memberId].teamId,
+              teamName: members[memberId].teamName
+            });
+          }
+        }
+      }
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('채널 멤버 일괄 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 최종 평가 데이터 조회 함수 추가 =====
+function getExistingFinalEvaluation(evalMonth) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const data = sheet.getDataRange().getValues();
+    const targetMonth = String(evalMonth);
+    
+    const result = {};
+    
+    for (let i = 1; i < data.length; i++) {
+      const [month, channelId, channelName, memberId, memberName, teamName, 
+             contribution2, totalAmount, leaderPercentage, distributionAmount, 
+             calcAmount, finalAmount, timestamp] = data[i];
+      
+      if (String(month) === targetMonth) {
+        if (!result[channelId]) {
+          result[channelId] = {
+            totalAmount: totalAmount,
+            leaderPercentage: leaderPercentage,
+            members: {}
+          };
+        }
+        result[channelId].members[memberId] = finalAmount;
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('최종 평가 데이터 조회 오류:', error);
+    return {};
+  }
+}
+
+
+function getMultipleExistingEvaluations(channelIds, evalMonth) {
+  try {
+    const result = {};
+    const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
+    const data = sheet.getDataRange().getValues();
+    const evalMonthStr = String(evalMonth);
+    
+    channelIds.forEach(channelId => {
+      const evaluations = {};
+      let channelComment = '';
+      
+      for (let i = 1; i < data.length; i++) {
+        const [month, chId, channelName, memberId, memberName, teamName, mm, contribution1, achievement, comment1, evaluatorId, chComment] = data[i];
+        
+        if (String(month) === evalMonthStr && chId === channelId) {
+          evaluations[memberId] = {
+            mm: mm,
+            contribution1: contribution1,
+            achievement: achievement,
+            comment1: comment1
+          };
+          
+          if (!channelComment && chComment) {
+            channelComment = chComment;
+          }
+        }
+      }
+      
+      evaluations.channelComment = channelComment;
+      result[channelId] = evaluations;
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('일괄 평가 데이터 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 개인별 연간 데이터 조회 함수 수정 =====
+function getIndividualYearlyData(memberId) {
+  try {
+    const finalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const firstSheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
+    const data = finalSheet.getDataRange().getValues();
+    const firstData = firstSheet.getDataRange().getValues();
+    
+    const yearlyData = {};
+    
+    // 최종 평가 데이터 수집
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][3] === memberId) { // memberId 매칭
+        const month = String(data[i][0]);
+        yearlyData[month] = {
+          channelName: data[i][2],
+          mm: data[i][6], // 2차기여도가 아닌 mm값을 가져와야 함
+          contribution2: data[i][6], // 실제 2차기여도
+          finalAmount: data[i][11],
+          teamName: data[i][5]
+        };
+      }
+    }
+    
+    // 1차 평가 데이터로 보완 (mm과 contribution 값 정확히 매핑)
+    for (let i = 1; i < firstData.length; i++) {
+      if (firstData[i][3] === memberId) {
+        const month = String(firstData[i][0]);
+        if (!yearlyData[month]) {
+          yearlyData[month] = {
+            channelName: firstData[i][2],
+            mm: firstData[i][6], // 투입MM (인덱스 6)
+            contribution1: firstData[i][7], // 1차기여도 (인덱스 7)
+            achievement: firstData[i][8],
+            teamName: firstData[i][5]
+          };
+        } else {
+          // 이미 최종평가 데이터가 있는 경우 mm값을 1차평가에서 가져옴
+          yearlyData[month].mm = firstData[i][6]; // 투입MM 값으로 수정
+          yearlyData[month].achievement = firstData[i][8];
+        }
+      }
+    }
+    
+    return yearlyData;
+  } catch (error) {
+    console.error('개인 연간 데이터 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 평가 상태 조회 함수 수정 =====
+function getEvaluationStatus(evalMonth) {
+  try {
+    const teams = getTeamsData();
+    const channels = getChannelsData();
+    const members = getMembersData();
+    const firstEvalSheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
+    const secondEvalSheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
+    const finalEvalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    
+    const firstEvalData = firstEvalSheet.getDataRange().getValues();
+    const secondEvalData = secondEvalSheet.getDataRange().getValues();
+    const finalEvalData = finalEvalSheet.getDataRange().getValues();
+    
+    const targetMonth = String(evalMonth);
+    const statusData = {};
+    
+    // 각 팀별로 평가 상태 확인
+    for (const teamId in teams) {
+      const teamChannels = channels.filter(c => c.teamId === teamId);
+      const teamMembers = members.filter(m => m.teamId === teamId);
+      
+      let stage = '미진행';
+      const teamChannelIds = teamChannels.map(c => c.id);
+      
+      // 각 단계별 평가 여부 확인
+      let hasFirstEval = false;
+      let hasSecondEval = false;
+      let hasFinalEval = false;
+      
+      // 최종 평가 확인
+      for (let i = 1; i < finalEvalData.length; i++) {
+        if (String(finalEvalData[i][0]) === targetMonth && teamChannelIds.includes(finalEvalData[i][1])) {
+          hasFinalEval = true;
+          break;
+        }
+      }
+      
+      // 2차 평가 확인
+      for (let i = 1; i < secondEvalData.length; i++) {
+        if (String(secondEvalData[i][0]) === targetMonth && teamChannelIds.includes(secondEvalData[i][1])) {
+          hasSecondEval = true;
+          break;
+        }
+      }
+      
+      // 1차 평가 확인
+      for (let i = 1; i < firstEvalData.length; i++) {
+        if (String(firstEvalData[i][0]) === targetMonth && teamChannelIds.includes(firstEvalData[i][1])) {
+          hasFirstEval = true;
+          break;
+        }
+      }
+      
+      // 평가 단계 설정
+      if (hasFinalEval) {
+        stage = '최종완료';
+      } else if (hasSecondEval) {
+        stage = '2차완료';
+      } else if (hasFirstEval) {
+        stage = '1차완료';
+      }
+      
+      statusData[teamId] = {
+        name: teams[teamId].name,
+        stage: stage,
+        channelCount: teamChannels.length,
+        memberCount: teamMembers.length
+      };
+    }
+    
+    return statusData;
+  } catch (error) {
+    console.error('평가 상태 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 트렌드 데이터 조회 함수 =====
+function getTrendData(type, target, period) {
+  try {
+    const months = [];
+    const now = new Date();
+    
+    // 기간에 따른 월 목록 생성
+    for (let i = period - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(date.toISOString().slice(0, 7));
+    }
+    
+    const data = {
+      labels: months,
+      amounts: [],
+      contributions: []
+    };
+    
+    months.forEach(month => {
+      const finalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+      const finalData = finalSheet.getDataRange().getValues();
+      
+      let totalAmount = 0;
+      let totalContribution = 0;
+      let count = 0;
+      
+      for (let i = 1; i < finalData.length; i++) {
+        const evalMonth = String(finalData[i][0]);
+        const channelId = finalData[i][1];
+        const teamName = finalData[i][5];
+        
+        if (evalMonth === month) {
+          if (type === 'team') {
+            const channel = getChannelsData().find(c => c.id === channelId);
+            if (channel && channel.teamId === target) {
+              totalAmount += finalData[i][11]; // 실지급성과금
+              totalContribution += finalData[i][6]; // 2차기여도
+              count++;
+            }
+          } else if (type === 'channel' && channelId === target) {
+            totalAmount += finalData[i][11];
+            totalContribution += finalData[i][6];
+            count++;
+          }
+        }
+      }
+      
+      data.amounts.push(totalAmount);
+      data.contributions.push(count > 0 ? Math.round(totalContribution / count) : 0);
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('트렌드 데이터 조회 오류:', error);
+    return { labels: [], amounts: [], contributions: [] };
   }
 }
