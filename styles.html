@@ -1,5 +1,5 @@
 <style>
-    /* ===== 전체 레이아웃 스타일 (다크모드) ===== */
+    /* ===== 전체 레이아웃 스타일 (다크모드 + 반응형) ===== */
     * {
         box-sizing: border-box;
         margin: 0;
@@ -8,9 +8,199 @@
     
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        /* 반응형 개선 */
+        min-width: 320px;
+        overflow-x: hidden;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    /* ===== 다크 테마 (기본) ===== */
+    body.dark-theme,
+    body {
         background-color: #0f0f0f;
         color: #f1f1f1;
-        line-height: 1.6;
+    }
+    
+    body.dark-theme .user-info-bar,
+    body .user-info-bar {
+        background: #1a1a1a;
+        border-bottom: 1px solid #3f3f3f;
+    }
+    
+    body.dark-theme .header,
+    body .header {
+        background: #272727;
+        border: 1px solid #3f3f3f;
+    }
+    
+    /* ===== 라이트 테마 ===== */
+    body.light-theme {
+        background-color: #ffffff;
+        color: #333333;
+    }
+    
+    body.light-theme .user-info-bar {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    body.light-theme .user-icon {
+        background: #e9ecef;
+        color: #333333;
+    }
+    
+    body.light-theme .user-name {
+        color: #333333;
+    }
+    
+    body.light-theme .user-email {
+        color: #6c757d;
+    }
+    
+    body.light-theme .department {
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+        color: #333333;
+    }
+    
+    body.light-theme .header {
+        background: #ffffff;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    body.light-theme .header h1 {
+        color: #333333;
+    }
+    
+    body.light-theme .header p {
+        color: #6c757d;
+    }
+    
+    body.light-theme .theme-toggle-btn {
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+        color: #333333;
+    }
+    
+    body.light-theme .theme-toggle-btn:hover {
+        background: #dee2e6;
+        border-color: #ced4da;
+    }
+    
+    /* ===== 라이트 테마 추가 스타일 ===== */
+    body.light-theme .comparison-summary {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        color: #333333;
+    }
+    
+    body.light-theme .channel-comment-section {
+        background: #f8f9fa;
+        border: 1px solid #4285f4;
+    }
+    
+    body.light-theme .channel-comment-section textarea {
+        background: #ffffff;
+        border: 1px solid #ced4da;
+        color: #333333;
+    }
+    
+    body.light-theme .channel-detail-box {
+        background: #e9ecef !important;
+        color: #333333 !important;
+    }
+    
+    body.light-theme .channel-detail-box p,
+    body.light-theme .channel-detail-box strong,
+    body.light-theme .channel-detail-box span {
+        color: #333333 !important;
+    }
+    
+    body.light-theme .channel-detail-box strong {
+        color: #4285f4 !important;
+    }
+    
+    body.light-theme .comparison-tabs {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+    
+    body.light-theme .comparison-tab {
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        color: #333333;
+    }
+    
+    body.light-theme .comparison-tab.active {
+        background: #4285f4;
+        color: #ffffff;
+    }
+    
+    body.light-theme .channel-drag-handle {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+    
+    body.light-theme .channel-drag-handle:hover {
+        background: #dee2e6;
+        color: #333333;
+    }
+    
+    body.light-theme #trendChartArea {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+    
+    body.light-theme .team-badge {
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+    }
+    
+    body.light-theme .contribution-changed {
+        background-color: #fff3cd !important;
+        color: #856404 !important;
+    }
+    
+    body.light-theme .amount-highlight {
+        background-color: #f8d7da !important;
+        color: #721c24 !important;
+    }
+    
+    /* ===== 반응형 컨테이너 ===== */
+    @media (max-width: 768px) {
+        body {
+            font-size: 14px;
+        }
+        
+        .container {
+            padding: 10px !important;
+        }
+        
+        .user-info-content {
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
+        }
+        
+        .evaluation-form {
+            padding: 15px !important;
+        }
+        
+        .channel-checkbox-area {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .stat-grid {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .management-tabs button {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+        }
     }
     
     /* ===== 사용자 정보 바 스타일 ===== */
@@ -38,6 +228,38 @@
         display: flex;
         align-items: center;
         gap: 15px;
+    }
+    
+    .user-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    /* ===== 테마 토글 버튼 스타일 ===== */
+    .theme-toggle-btn {
+        background: #272727;
+        border: 1px solid #3f3f3f;
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: #f1f1f1;
+        font-size: 18px;
+    }
+    
+    .theme-toggle-btn:hover {
+        background: #3f3f3f;
+        border-color: #5f5f5f;
+        transform: scale(1.05);
+    }
+    
+    .theme-toggle-btn:active {
+        transform: scale(0.95);
     }
     
     .user-icon {
@@ -126,6 +348,30 @@
     
     .loading.show {
         display: block;
+    }
+    
+    /* ===== 로딩 오버레이 (UI 차단용) ===== */
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+        cursor: wait;
+    }
+    
+    .loading-overlay.show {
+        display: block;
+    }
+    
+    /* 로딩 중일 때 모든 버튼과 입력 필드 비활성화 */
+    .loading-disabled {
+        pointer-events: none !important;
+        opacity: 0.6 !important;
+        cursor: not-allowed !important;
     }
     
     .spinner {
@@ -222,7 +468,11 @@
     }
     
     .role-content.active {
-        display: block;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1 !important;
     }
     
     .role-content h2 {
@@ -1365,6 +1615,76 @@
         margin: 15px 0;
     }
     
+    /* ===== 권한 관리 스타일 (최고 우선순위) ===== */
+    body #permissionContent {
+        display: none;
+    }
+    
+    body #permissionContent.active,
+    body div#permissionContent.role-content.active {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 999 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .permissions-list {
+        width: 100%;
+        margin-top: 20px;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    .permissions-list .evaluation-table {
+        width: 100% !important;
+        display: table !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    .permissions-list table {
+        width: 100%;
+        margin: 0;
+        background: #1a1a1a;
+        border: 1px solid #3f3f3f;
+    }
+    
+    .permissions-list th,
+    .permissions-list td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #3f3f3f;
+        color: #f1f1f1;
+    }
+    
+    .permissions-list th {
+        background: #272727;
+        font-weight: 600;
+        color: #4285f4;
+    }
+    
+    /* 라이트 테마용 권한 관리 */
+    body.light-theme .permissions-list table {
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        color: #333333;
+    }
+    
+    body.light-theme .permissions-list th {
+        background: #f8f9fa;
+        color: #4285f4;
+    }
+    
+    body.light-theme .permissions-list th,
+    body.light-theme .permissions-list td {
+        border-bottom: 1px solid #dee2e6;
+        color: #333333;
+    }
+    
     .team-checkbox-item {
         display: flex;
         align-items: center;
@@ -1466,75 +1786,81 @@
         color: #60a5fa;
     }
 
-/* ===== 알림 팝업 스타일 ===== */
-    .notification-popup {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        width: 350px;
-        background: #272727;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        border: 1px solid #3f3f3f;
-        z-index: 10000;
-        transform: translateX(400px);
-        transition: transform 0.3s ease;
-    }
-    
-    .notification-popup.show {
-        transform: translateX(0);
-    }
-    
-    .notification-popup.success {
-        border-color: #27ae60;
-    }
-    
-    .notification-popup.error {
-        border-color: #e74c3c;
-    }
-    
-    .notification-popup.warning {
-        border-color: #f39c12;
-    }
-    
-    .notification-popup.info {
-        border-color: #3498db;
-    }
-    
-    .notification-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        border-bottom: 1px solid #3f3f3f;
-    }
-    
-    .notification-content {
-        padding: 15px;
-        color: #f1f1f1;
-        font-size: 14px;
-    }
-    
-    .close-btn {
-        background: none;
-        border: none;
-        color: #aaa;
-        font-size: 24px;
-        cursor: pointer;
-        padding: 0;
-        width: 30px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: all 0.2s;
-    }
-    
-    .close-btn:hover {
-        background: #3f3f3f;
-        color: #fff;
-    }
+/* ===== 알림 팝업 스타일 (위치 변경) ===== */
+.notification-popup {
+    position: fixed;
+    bottom: 30px;  /* 아래쪽으로 변경 */
+    left: 50%;     /* 중앙 정렬 */
+    transform: translate(-50%, 100px);  /* 초기 위치는 아래에 숨김 */
+    width: 350px;
+    background: #272727;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    border: 1px solid #3f3f3f;
+    z-index: 10000;
+    opacity: 0;  /* 초기에는 투명 */
+    transition: all 0.3s ease;  /* 부드러운 애니메이션 */
+}
+
+.notification-popup.show {
+    transform: translate(-50%, 0);  /* 보일 때는 정위치로 */
+    opacity: 1;  /* 보일 때는 불투명 */
+}
+
+.notification-popup.success {
+    border-color: #27ae60;
+    box-shadow: 0 4px 20px rgba(39, 174, 96, 0.3);
+}
+
+.notification-popup.error {
+    border-color: #e74c3c;
+    box-shadow: 0 4px 20px rgba(231, 76, 60, 0.3);
+}
+
+.notification-popup.warning {
+    border-color: #f39c12;
+    box-shadow: 0 4px 20px rgba(243, 156, 18, 0.3);
+}
+
+.notification-popup.info {
+    border-color: #3498db;
+    box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #3f3f3f;
+}
+
+.notification-content {
+    padding: 15px;
+    color: #f1f1f1;
+    font-size: 14px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #3f3f3f;
+    color: #fff;
+}
     
     /* ===== 평가 상태 섹션 ===== */
     .evaluation-status-section {
@@ -1679,6 +2005,143 @@
     }
 
 
+/* ===== 팀 뱃지 스타일 (촬영팀 추가) ===== */
+.team-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #272727;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid #3f3f3f;
+    margin-left: 10px;
+}
 
+.team-badge.team1 { border-color: #e74c3c; color: #e74c3c; }
+.team-badge.team2 { border-color: #3498db; color: #3498db; }
+.team-badge.team3 { border-color: #2ecc71; color: #2ecc71; }
+.team-badge.team4 { border-color: #f39c12; color: #f39c12; }
+.team-badge.team5 { border-color: #9b59b6; color: #9b59b6; }
+.team-badge.team6 { border-color: #1abc9c; color: #1abc9c; }  /* 촬영팀 색상 추가 */
+
+/* 단축키 안내 스타일 */
+.shortcut-info {
+    font-size: 13px;
+    border: 1px solid #3f3f3f;
+}
+
+.shortcut-info strong {
+    color: #1a73e8;
+    font-weight: 600;
+}
+
+/* 자동 저장 상태 표시 */
+#autoSaveStatus {
+    margin-left: 20px;
+    padding: 4px 10px;
+    background: #27ae60;
+    border-radius: 12px;
+    font-size: 12px;
+    color: white;
+}
+
+#autoSaveStatus.saving {
+    background: #f39c12;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* 선택적 제출 강조 */
+#submitSecondEvalBtn:hover::after,
+#submitFinalEvalBtn:hover::after {
+    content: ' (선택한 팀만)';
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* 팀 선택 안내 */
+.team-filter-section h4 {
+    color: #f39c12;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.team-filter-section h4::before {
+    content: '⚡ ';
+}
+
+/* 진행률 표시 개선 */
+#progressBar::after {
+    content: attr(data-progress);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 충돌 경고 */
+.conflict-warning {
+    background: #3c1d1d;
+    border: 1px solid #dc2626;
+    color: #f87171;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.conflict-warning::before {
+    content: '⚠️';
+    font-size: 24px;
+}
+
+/* TOP 3 스타일 */
+.summary-box .amount {
+    font-size: 18px;
+    margin-top: 5px;
+}
+
+/* 정렬 화살표 호버 효과 */
+th span:hover {
+    transform: scale(1.2);
+    transition: transform 0.2s;
+}
+
+/* 순위별 배경색 (선택사항) */
+.evaluation-table tbody tr:nth-child(1) {
+    background-color: rgba(255, 215, 0, 0.1); /* 1위 금색 배경 */
+}
+
+.evaluation-table tbody tr:nth-child(2) {
+    background-color: rgba(192, 192, 192, 0.1); /* 2위 은색 배경 */
+}
+
+.evaluation-table tbody tr:nth-child(3) {
+    background-color: rgba(205, 127, 50, 0.1); /* 3위 동색 배경 */
+}
+
+/* 기여도 변경 강조 - 강제 적용 */
+td.contribution-changed {
+    background-color: #040121 !important;
+    color: #ff031c !important;
+    font-weight: bold !important;
+}
+
+/* 금액 차이 강조 - 강제 적용 */
+td.amount-highlight {
+    background-color: #040121 !important;
+    color: #ff031c !important;
+    font-weight: bold !important;
+}
 
 </style>
