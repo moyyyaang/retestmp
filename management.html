@@ -440,55 +440,7 @@ function forceDarkModeForChannel(channelId) {
     });
 }
 
-// ===== 역할 전환 함수 수정 =====
-function switchRole(role) {
-    document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
-    
-    if (event && event.target) {
-        event.target.classList.add('active');
-    }
-    
-    if (role === 'management') {
-        document.getElementById('managementContent').classList.add('active');
-    } else if (role === 'teamlead') {
-        if (currentUser.level < 1) {
-            showNotification('1차 평가 권한이 없습니다.', 'error');
-            return;
-        }
-        document.getElementById('teamleadContent').classList.add('active');
-    } else if (role === 'manager') {
-        if (currentUser.level < 2) {
-            showNotification('2차 평가 권한이 없습니다.', 'error');
-            return;
-        }
-        document.getElementById('managerContent').classList.add('active');
-    } else if (role === 'executive') {
-        if (currentUser.level < 3) {
-            showNotification('최종 평가 권한이 없습니다.', 'error');
-            return;
-        }
-        document.getElementById('executiveContent').classList.add('active');
-    } else if (role === 'dashboard') {
-        if (currentUser.level < 3) {
-            showNotification('대시보드 접근 권한이 없습니다.', 'error');
-            return;
-        }
-        document.getElementById('dashboardContent').classList.add('active');
-    } else if (role === 'permission') {
-        if (currentUser.level < 3) {
-            showNotification('권한 관리 접근 권한이 없습니다.', 'error');
-            return;
-        }
-        const permissionContent = document.getElementById('permissionContent');
-        if (permissionContent) {
-            permissionContent.classList.add('active');
-            loadPermissionsList();
-        }
-    }
-    
-    setTimeout(forceDarkMode, 20);
-}
+// switchRole 함수는 utils.html.txt에서 정의됨 (중복 제거)
 
 // ===== 페이지 로드 시 권한 설정 =====
 window.addEventListener('load', function() {
@@ -528,4 +480,40 @@ window.addEventListener('load', function() {
         }, 50);
     }
 });
+
+// 이벤트 리스너 정리
+class ComponentManager {
+    constructor() {
+        this.listeners = new Map();
+    }
+    
+    addListener(element, event, handler) {
+        element.addEventListener(event, handler);
+        
+        if (!this.listeners.has(element)) {
+            this.listeners.set(element, []);
+        }
+        this.listeners.get(element).push({ event, handler });
+    }
+    
+    cleanup() {
+        for (const [element, events] of this.listeners) {
+            events.forEach(({ event, handler }) => {
+                element.removeEventListener(event, handler);
+            });
+        }
+        this.listeners.clear();
+    }
+}
+
+const componentManager = new ComponentManager();
+
+// 역할 전환 시 정리
+function switchRoleOptimized(role) {
+    componentManager.cleanup(); // 이전 화면의 리스너 정리
+    switchRole(role);
+}
+
+
+
 </script>
