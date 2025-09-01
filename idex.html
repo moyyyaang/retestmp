@@ -17,6 +17,18 @@
             <p style="margin-top: 15px; text-align: center;">처리중...</p>
         </div>
         
+        <!-- 로딩 오버레이 (UI 차단용) -->
+        <div class="loading-overlay" id="loadingOverlay"></div>
+
+        <!-- 5. 진행률 표시 영역 (로딩 스피너 아래) -->
+        <div id="progressContainer" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9998;">
+            <div style="background: #272727; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                 <p style="margin-bottom: 10px; color: #f1f1f1;">처리 중...</p>
+                 <div style="width: 300px; height: 20px; background: #0f0f0f; border-radius: 10px; overflow: hidden;">
+                      <div id="progressBar" style="width: 0%; height: 100%; background: #1a73e8; transition: width 0.3s;"></div>
+                 </div>
+            </div>
+        </div>
         <!-- 실시간 알림 팝업 -->
         <div id="notificationPopup" class="notification-popup">
             <div class="notification-header">
@@ -36,29 +48,51 @@
                         <div class="user-email"><?= userEmail ?></div>
                     </div>
                 </div>
-                <div class="user-permission">
-                    <span class="permission-badge level-<?= userInfo.level ?>">
-                        <?= userInfo.level === 3 ? '최고 관리자' : userInfo.level === 2 ? '중간 관리자' : '평가자' ?>
-                    </span>
-                    <span class="department"><?= userInfo.department ?></span>
+                <div class="user-controls">
+                    <!-- 테마 전환 버튼 -->
+                    <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="다크/라이트모드 전환">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    
+                    <!-- UI 잠김 해제 버튼 (디버깅용) -->
+                    <button class="theme-toggle-btn" onclick="forceUnlockUI()" title="UI 잠김 강제 해제" style="margin-left: 5px;">
+                        🔓
+                    </button>
+                    
+                    <!-- 시트 구조 디버깅 버튼 -->
+                    <button class="theme-toggle-btn" onclick="debugSheets()" title="시트 구조 디버깅" style="margin-left: 5px;">
+                        🔍
+                    </button>
+                    
+                    <div class="user-permission">
+                        <span class="permission-badge level-<?= userInfo.level ?>">
+                            <?= userInfo.level === 3 ? '최고 관리자' : userInfo.level === 2 ? '중간 관리자' : '평가자' ?>
+                        </span>
+                        <span class="department"><?= userInfo.department ?></span>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- 헤더 영역 -->
         <div class="header">
-            <h1>성과 평가 시스템</h1>
-            <p>스튜디오별 채널 성과를 체계적으로 평가하고 관리합니다</p>
+            <h1>성과 평가 시스템 Ver.1 </h1>
+            <p>스튜디오별 채널 성과를 체계적으로 평가하고 관리합니다
+              사용문의: 모양태 본부장ㅣ잘 안되면 새로고침 해보세요 (초기화)
+            </p>
         </div>
-        
+        <div class="shortcut-info" style="background: #212121; padding: 10px; border-radius: 8px; margin-bottom: 20px; text-align: center; color: #aaa;">
+         🟨 평가월 선택 >  평가자선택 > 팀선택 > 채널선택 하고 채널평가하기 버튼 누르기 ✅채널에 팀원추가 한번에 하려면 팀원/채널관리 탭에서 관리  💡 단축키: <strong>Ctrl+S</strong> 저장
+         <span id="autoSaveStatus">자동 저장: 5분마다</span>
+        </div>
         <!-- 역할 선택 버튼 -->
         <div class="role-selector">
             <button class="role-btn" onclick="switchRole('management')">⚙️ 팀원/채널 관리</button>
             <button class="role-btn" onclick="switchRole('teamlead')">📝 1차 평가 (팀장)</button>
-            <? if (userInfo.level >= 2) { ?>
+            <? if (parseInt(userInfo.level) >= 2 || userInfo.level >= 2 || userInfo.level === "2" || userInfo.level === "3") { ?>
             <button class="role-btn" onclick="switchRole('manager')">🔄 2차 평가 (관리자)</button>
             <? } ?>
-            <? if (userInfo.level >= 3) { ?>
+            <? if (parseInt(userInfo.level) >= 3 || userInfo.level >= 3 || userInfo.level === "3") { ?>
             <button class="role-btn" onclick="switchRole('executive')">✅ 최종 평가 (최종관리자)</button>
             <button class="role-btn" onclick="switchRole('dashboard')">📊 대시보드</button>
             <button class="role-btn" onclick="switchRole('permission')">⚙️ 권한 관리</button>
@@ -82,6 +116,7 @@
                         <option value="team3">스튜디오 3팀</option>
                         <option value="team4">스튜디오 4팀</option>
                         <option value="team5">스튜디오 5팀</option>
+                        <option value="team6">촬영팀</option>
                     </select>
                 </div>
                 <? } else { ?>
@@ -164,6 +199,7 @@
                                 <option value="team3">스튜디오 3팀</option>
                                 <option value="team4">스튜디오 4팀</option>
                                 <option value="team5">스튜디오 5팀</option>
+                                <option value="team6">촬영팀</option>
                             </select>
                         </div>
                         <h4>✅ 팀원 선택</h4>
@@ -239,16 +275,28 @@
                                     <option value="team3">스튜디오 3팀</option>
                                     <option value="team4">스튜디오 4팀</option>
                                     <option value="team5">스튜디오 5팀</option>
+                                    <option value="team6">촬영팀</option>
                                 </select>
                             </div>
                         </div>
-                        
-                        <div id="teamChannelsArea" style="display: none;">
-                            <h3>📺 평가할 채널 선택</h3>
-                            <div id="channelCheckboxArea" class="channel-checkbox-area"></div>
-                            <button class="btn btn-primary" style="margin: 20px 0;" onclick="loadSelectedChannels()">🎯 선택한 채널 평가하기</button>
-                        </div>
-                    </div>
+                       <!-- 이전 달 복사 버튼을 별도 섹션으로 분리 -->
+                          <div style="margin: 20px 0; padding: 15px; background: #212121; border-radius: 8px; border: 1px solid #3f3f3f;">
+                              <button class="btn btn-warning" onclick="copyFromPreviousMonth()" style="display: flex; align-items: center; gap: 10px;">
+                                  <span style="font-size: 20px;">📋</span>
+                                  <span>이전 달 데이터 복사</span>
+                              </button>
+                              <p style="color: #aaa; font-size: 12px; margin-top: 10px; margin-bottom: 0;">
+                                  💡 이전 달의 MM, 기여도, 성과, 코멘트를 자동으로 복사합니다.
+                              </p>
+                          </div>
+                          
+                          <div id="teamChannelsArea" style="display: none;">
+                              <h3>📺 평가할 채널 선택</h3>
+                              <div id="channelCheckboxArea" class="channel-checkbox-area"></div>
+                              <button class="btn btn-primary" style="margin: 20px 0;" onclick="loadSelectedChannels()">🎯 선택한 채널 평가하기</button>
+                          </div>
+                      </div>
+                    <button class="btn btn-primary" onclick="sortChannelsByMM()" style="margin-bottom: 20px;">📊 채널 MM 합계순 정렬</button>
                 </div>
                 
                 <div id="channelEvaluationsArea"></div>
@@ -256,7 +304,7 @@
                 <button class="submit-btn" id="submitFirstEvalBtn" style="display: none;" onclick="submitFirstEvaluation()">✨ 1차 평가 최종 제출</button>
             </div>
             
-            <!-- 2차 평가 (관리자) 화면 -->
+                        <!-- 2차 평가 (관리자) 화면 -->
             <? if (userInfo.level >= 2) { ?>
             <div id="managerContent" class="role-content">
                 <h2>🔄 2차 평가 - 평가 조정</h2>
@@ -288,40 +336,47 @@
                         </div>
                         <input type="hidden" id="evalMonth2nd">
                     </div>
-                    <button class="btn btn-primary" onclick="loadSecondEvaluation()">📥 평가 데이터 불러오기</button>
                 </div>
                 
-                <!-- 팀 필터 추가 -->
-                <div id="secondEvalTeamFilter" style="display: none; margin: 20px 0;">
-                    <div class="team-filter-section">
-                        <h4>🔍 팀 필터 선택</h4>
-                        <div class="team-checkbox-area">
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team1" checked> 스튜디오 1팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team2" checked> 스튜디오 2팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team3" checked> 스튜디오 3팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team4" checked> 스튜디오 4팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team5" checked> 스튜디오 5팀
-                            </label>
-                        </div>
-                        <button class="btn btn-primary" onclick="applySecondEvalTeamFilter()" style="margin-top: 10px;">적용</button>
+                <!-- 팀 필터를 먼저 표시 -->
+               <div class="team-filter-section" style="margin: 20px 0; background: #212121; padding: 20px; border-radius: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                          <h4>🔍 평가할 팀 선택</h4>
+                          <button class="btn btn-primary btn-sm" onclick="toggleAllTeams(this)">
+                              ✅ 전체 선택
+                          </button>
+                      </div>
+                      <div class="team-checkbox-area">
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team1"> 스튜디오 1팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team2"> 스튜디오 2팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team3"> 스튜디오 3팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team4"> 스튜디오 4팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team5"> 스튜디오 5팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team6"> 촬영팀
+                        </label>
                     </div>
+                    <button class="btn btn-primary" onclick="loadSecondEvaluation()" style="margin-top: 15px;">📥 선택한 팀 데이터 불러오기</button>
                 </div>
+                
+                <button class="btn btn-primary" onclick="sortChannelsByMM()" style="margin-bottom: 20px; display: none;" id="sortChannelsBtn2nd">📊 채널 MM 합계순 정렬</button>
                 
                 <div id="secondEvaluationArea"></div>
-                <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluation()">✨ 2차 평가 저장</button>
+                <button class="submit-btn" id="submitSecondEvalBtn" style="display: none;" onclick="submitSecondEvaluationSelective()">✨ 표시된 팀만 2차 평가 저장</button>
             </div>
             <? } ?>
             
-            <!-- 최종 평가 (최종관리자) 화면 -->
+                        <!-- 최종 평가 (최종관리자) 화면 -->
             <? if (userInfo.level >= 3) { ?>
             <div id="executiveContent" class="role-content">
                 <h2>✅ 최종 평가 - 성과금 책정</h2>
@@ -359,36 +414,43 @@
                         </div>
                         <input type="hidden" id="evalMonthFinal">
                     </div>
-                    <button class="btn btn-primary" onclick="loadFinalEvaluation()">📥 평가 데이터 불러오기</button>
                 </div>
                 
-                <!-- 팀 필터 추가 -->
-                <div id="finalEvalTeamFilter" style="display: none; margin: 20px 0;">
-                    <div class="team-filter-section">
-                        <h4>🔍 팀 필터 선택</h4>
-                        <div class="team-checkbox-area">
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team1" checked> 스튜디오 1팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team2" checked> 스튜디오 2팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team3" checked> 스튜디오 3팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team4" checked> 스튜디오 4팀
-                            </label>
-                            <label class="team-checkbox-item">
-                                <input type="checkbox" value="team5" checked> 스튜디오 5팀
-                            </label>
-                        </div>
-                        <button class="btn btn-primary" onclick="applyFinalEvalTeamFilter()" style="margin-top: 10px;">적용</button>
+                <!-- 팀 필터를 먼저 표시 -->
+                <div class="team-filter-section" style="margin: 20px 0; background: #212121; padding: 20px; border-radius: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                          <h4>🔍 평가할 팀 선택</h4>
+                          <button class="btn btn-primary btn-sm" onclick="toggleAllTeams(this)">
+                              ✅ 전체 선택
+                          </button>
+                      </div>
+                      <div class="team-checkbox-area">
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team1"> 스튜디오 1팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team2"> 스튜디오 2팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team3"> 스튜디오 3팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team4"> 스튜디오 4팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team5"> 스튜디오 5팀
+                        </label>
+                        <label class="team-checkbox-item">
+                            <input type="checkbox" value="team6"> 촬영팀
+                        </label>
                     </div>
+                    <button class="btn btn-primary" onclick="loadFinalEvaluation()" style="margin-top: 15px;">📥 선택한 팀 데이터 불러오기</button>
                 </div>
+                
+                <button class="btn btn-primary" onclick="sortChannelsByMM()" style="margin-bottom: 20px; display: none;" id="sortChannelsBtnFinal">📊 채널 MM 합계순 정렬</button>
                 
                 <div id="finalEvaluationArea"></div>
-                <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluation()">🎉 이달의 평가 최종 확정</button>
+                <button class="submit-btn" id="submitFinalEvalBtn" style="display: none;" onclick="submitFinalEvaluationSelective()">🎉 표시된 팀만 평가 최종 확정</button>
             </div>
             <? } ?>
             
@@ -401,6 +463,7 @@
                     <button class="comparison-tab active" data-type="comparison" onclick="switchDashboardTab('comparison')">📈 전월 비교</button>
                     <button class="comparison-tab" data-type="individual" onclick="switchDashboardTab('individual')">👤 인원별 분석</button>
                     <button class="comparison-tab" data-type="trend" onclick="switchDashboardTab('trend')">📊 트렌드 분석</button>
+                    <button class="comparison-tab" data-type="monthly" onclick="switchDashboardTab('monthly')">💰 월별 성과금</button>
                 </div>
                 
                 <!-- 전월 비교 섹션 -->
@@ -454,6 +517,20 @@
                                 </select>
                             </div>
                         </div>
+                                            <!-- 팀 선택 추가 -->
+                            <div class="selector-item">
+                                <label>팀 선택:</label>
+                                <select id="compareTeamSelect">
+                                    <option value="">전체 팀</option>
+                                    <option value="team1">스튜디오 1팀</option>
+                                    <option value="team2">스튜디오 2팀</option>
+                                    <option value="team3">스튜디오 3팀</option>
+                                    <option value="team4">스튜디오 4팀</option>
+                                    <option value="team5">스튜디오 5팀</option>
+                                    <option value="team6">촬영팀</option>
+                                </select>
+                            </div>
+
                         <button class="btn btn-primary" onclick="loadComparisonData()">🔍 비교 분석 실행</button>
                     </div>
                     <div id="comparisonArea"></div>
@@ -471,6 +548,7 @@
                                 <option value="team3">스튜디오 3팀</option>
                                 <option value="team4">스튜디오 4팀</option>
                                 <option value="team5">스튜디오 5팀</option>
+                                <option value="team6">촬영팀</option>
                             </select>
                         </div>
                         <div class="selector-item">
@@ -514,11 +592,53 @@
                         <canvas id="trendChart"></canvas>
                     </div>
                 </div>
-            </div>
+                   <!-- 월별 성과금 섹션 추가 -->
+                      <div id="monthlyPaymentSection" class="dashboard-section">
+                          <div class="selector-group">
+                              <div class="selector-item">
+                                  <label>연도:</label>
+                                  <select id="paymentYear">
+                                      <option value="2025">2025년</option>
+                                      <option value="2026">2026년</option>
+                                  </select>
+                              </div>
+                              <div class="selector-item">
+                                  <label>월:</label>
+                                  <select id="paymentMonth">
+                                      <option value="01">1월</option>
+                                      <option value="02">2월</option>
+                                      <option value="03">3월</option>
+                                      <option value="04">4월</option>
+                                      <option value="05">5월</option>
+                                      <option value="06">6월</option>
+                                      <option value="07">7월</option>
+                                      <option value="08">8월</option>
+                                      <option value="09">9월</option>
+                                      <option value="10">10월</option>
+                                      <option value="11">11월</option>
+                                      <option value="12">12월</option>
+                                  </select>
+                              </div>
+                              <div class="selector-item">
+                                  <label>팀 선택:</label>
+                                  <select id="paymentTeam">
+                                      <option value="">팀을 선택하세요</option>
+                                      <option value="team1">스튜디오 1팀</option>
+                                      <option value="team2">스튜디오 2팀</option>
+                                      <option value="team3">스튜디오 3팀</option>
+                                      <option value="team4">스튜디오 4팀</option>
+                                      <option value="team5">스튜디오 5팀</option>
+                                      <option value="team6">촬영팀</option>
+                                  </select>
+                              </div>
+                              <button class="btn btn-primary" onclick="loadMonthlyPayment()">💰 조회</button>
+                          </div>
+                          <div id="monthlyPaymentArea"></div>
+                  </div>
             <? } ?>
             
             <!-- 권한 관리 화면 -->
-            <? if (userInfo.level >= 3) { ?>
+            <? if (parseInt(userInfo.level) >= 3 || userInfo.level == 3 || userInfo.level === "3") { ?>
             <div id="permissionContent" class="role-content">
                 <h2>⚙️ 사용자 권한 관리</h2>
                 
@@ -582,18 +702,61 @@
             teamleadId: '<?= userInfo.teamleadId || '' ?>'
         };
         
-        // ===== 알림 시스템 =====
-        function showNotification(message, type = 'info') {
+        // ===== 개선된 알림 시스템 (접근성 + 사용자 친화적) =====
+        function showNotification(message, type = 'info', duration = 5000) {
             const popup = document.getElementById('notificationPopup');
             const content = document.getElementById('notificationContent');
             
-            popup.className = `notification-popup show ${type}`;
-            content.innerHTML = message;
+            // 기존 타이머 제거
+            if (window.notificationTimer) {
+                clearTimeout(window.notificationTimer);
+            }
             
-            // 5초 후 자동 닫기
-            setTimeout(() => {
+            // 접근성 속성 추가
+            popup.setAttribute('role', 'alert');
+            popup.setAttribute('aria-live', 'polite');
+            
+            // 사용자 친화적 메시지 구성
+            let iconAndTitle;
+            switch (type) {
+                case 'success':
+                    iconAndTitle = '<strong style="color: #27ae60;">✅ 성공!</strong>';
+                    duration = 3000; // 성공 메시지는 짧게
+                    break;
+                case 'error':
+                    iconAndTitle = '<strong style="color: #e74c3c;">❌ 오류 발생</strong>';
+                    duration = 8000; // 오류는 길게 표시
+                    break;
+                case 'warning':
+                    iconAndTitle = '<strong style="color: #f39c12;">⚠️ 주의</strong>';
+                    duration = 6000;
+                    break;
+                default:
+                    iconAndTitle = '<strong style="color: #3498db;">ℹ️ 알림</strong>';
+                    duration = 5000;
+            }
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 8px;">${iconAndTitle}</div>
+                <div style="font-size: 14px; line-height: 1.4; opacity: 0.9;">${message}</div>
+                ${type === 'error' ? '<small style="opacity: 0.7; margin-top: 8px; display: block;">클릭하여 닫기</small>' : ''}
+            `;
+            
+            popup.className = `notification-popup show ${type}`;
+            
+            // 에러는 클릭으로도 닫을 수 있게
+            if (type === 'error') {
+                popup.style.cursor = 'pointer';
+                popup.onclick = closeNotification;
+            } else {
+                popup.style.cursor = 'default';
+                popup.onclick = null;
+            }
+            
+            // 자동 닫기 타이머
+            window.notificationTimer = setTimeout(() => {
                 closeNotification();
-            }, 5000);
+            }, duration);
         }
         
         function closeNotification() {
@@ -616,7 +779,10 @@
             
             if (type === 'comparison') {
                 document.getElementById('comparisonSection').classList.add('active');
-            } else if (type === 'individual') {
+            } else if (type === 'monthly') {
+                document.getElementById('monthlyPaymentSection').classList.add('active');
+            }
+              else if (type === 'individual') {
                 document.getElementById('individualAnalysisSection').classList.add('active');
             } else if (type === 'trend') {
                 document.getElementById('trendAnalysisSection').classList.add('active');
@@ -664,23 +830,8 @@
             window.compareMonth2 = `${year}-${month}`;
         }
         
-        // ===== 평가 상태 로드 =====
-        function loadEvaluationStatus() {
-            const evalMonth = document.getElementById('evalMonthFinal').value;
-            if (!evalMonth) return;
-            
-            showLoading(true);
-            google.script.run
-                .withSuccessHandler(function(statusData) {
-                    displayEvaluationStatus(statusData);
-                    showLoading(false);
-                })
-                .withFailureHandler(function(error) {
-                    console.error('평가 상태 로드 실패:', error);
-                    showLoading(false);
-                })
-                .getEvaluationStatus(evalMonth);
-        }
+        // ===== 평가 상태 로드 (중복 제거됨 - utils.html.txt에서 처리) =====
+        // loadEvaluationStatus는 utils.html.txt에 정의되어 있음
         
         // ===== 평가 상태 표시 =====
         function displayEvaluationStatus(statusData) {
@@ -1026,76 +1177,87 @@
                 }
             }, 50);
             
+            // 테마 초기화
+            initializeTheme();
+            
             // 알림 테스트
             showNotification('🎉 성과 평가 시스템에 오신 것을 환영합니다!', 'success');
         };
         
-        // ===== 권한 관리 함수들 =====
-        function loadPermissionsList() {
-            showLoading(true);
+        // ===== 권한 관리 함수들 (중복 제거됨 - utils.html.txt에서 처리) =====
+        // loadPermissionsList는 utils.html.txt에 정의되어 있음
+        // displayPermissionsList만 여기서 정의 (DOM 요소가 이 파일에 있음)
+        
+        // displayPermissionsList 함수는 utils.html.txt에 정의되어 있음
+        
+        // ===== 시트 구조 디버깅 함수 (강화) =====
+        function debugSheets() {
+            console.log('시트 구조 디버깅 시작...');
+            showLoading(true, '시트 구조 확인 중...');
+            
             google.script.run
-                .withSuccessHandler(function(permissions) {
-                    displayPermissionsList(permissions);
+                .withSuccessHandler(function(result) {
+                    console.log('=== 🔍 시트 디버깅 결과 ===');
+                    console.log('📋 시트 목록:', result.sheets);
+                    console.log('👤 현재 사용자:', result.userEmail);
+                    console.log('🔑 사용자 정보:', JSON.stringify(result.userInfo, null, 2));
+                    console.log('📊 권한 시트 존재:', result.hasPermissionSheet);
+                    console.log('🔍 사용자 시트 내 존재:', result.userFoundInSheet);
+                    
+                    if (result.permissionData) {
+                        console.log('📄 권한 시트 데이터 (처음 5행):');
+                        result.permissionData.forEach((row, index) => {
+                            console.log(`  행 ${index}:`, row);
+                        });
+                    }
+                    
+                    if (result.autoAdded) {
+                        console.log('✅ 사용자 자동 추가됨');
+                    }
+                    
+                    if (result.error) {
+                        console.error('❌ 디버깅 오류:', result.error);
+                        if (result.stack) {
+                            console.error('스택 트레이스:', result.stack);
+                        }
+                        showNotification('디버깅 오류: ' + result.error, 'error');
+                    } else {
+                        // 권한관리 문제 진단
+                        let diagnosis = '';
+                        if (!result.hasPermissionSheet) {
+                            diagnosis = '❌ 사용자권한 시트가 없습니다';
+                        } else if (!result.userFoundInSheet && !result.autoAdded) {
+                            diagnosis = '❌ 사용자가 권한 시트에 등록되지 않았습니다';
+                        } else if (!result.userInfo) {
+                            diagnosis = '❌ getUserPermission 함수에서 사용자 정보를 찾을 수 없습니다';
+                        } else if (result.userInfo.level < 3) {
+                            diagnosis = `❌ 권한 레벨 부족 (현재: ${result.userInfo.level}, 필요: 3)`;
+                        } else {
+                            diagnosis = '✅ 권한 시스템 정상 - 권한관리 페이지가 작동해야 합니다';
+                        }
+                        
+                        console.log('🏥 진단 결과:', diagnosis);
+                        showNotification('디버깅 완료: ' + diagnosis, 
+                                       diagnosis.startsWith('✅') ? 'success' : 'warning');
+                        
+                        // 자동 추가된 경우 권한관리 페이지 다시 로드 시도
+                        if (result.autoAdded) {
+                            setTimeout(() => {
+                                console.log('권한관리 페이지 다시 로드 시도...');
+                                if (document.getElementById('permissionContent')) {
+                                    loadPermissionsList();
+                                }
+                            }, 2000);
+                        }
+                    }
                     showLoading(false);
                 })
                 .withFailureHandler(function(error) {
-                    showAlert('권한 목록 로드 실패: ' + error, 'error');
+                    console.error('❌ 디버깅 실패:', error);
+                    showNotification('디버깅 실패: ' + error, 'error');
                     showLoading(false);
                 })
-                .getPermissionsList();
-        }
-        
-        function displayPermissionsList(permissions) {
-            const listDiv = document.getElementById('permissionsList');
-            let html = `
-                <table class="evaluation-table">
-                    <thead>
-                        <tr>
-                            <th>이메일</th>
-                            <th>이름</th>
-                            <th>부서</th>
-                            <th>권한레벨</th>
-                            <th>상태</th>
-                            <th>등록일시</th>
-                            <th>관리</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            permissions.forEach(user => {
-                const levelText = user.level === 1 ? '1차 평가' : user.level === 2 ? '1-2차 평가' : '전체 권한';
-                const statusClass = user.active === 'Y' ? 'positive-change' : 'negative-change';
-                const statusText = user.active === 'Y' ? '활성' : '비활성';
-                
-                html += `
-                    <tr>
-                        <td>${user.email}</td>
-                        <td>${user.name}</td>
-                        <td>${user.department}</td>
-                        <td>
-                            <select onchange="updateUserLevel('${user.email}', this.value)" ${user.email === currentUser.email ? 'disabled' : ''}>
-                                <option value="1" ${user.level === 1 ? 'selected' : ''}>1 - 1차 평가만</option>
-                                <option value="2" ${user.level === 2 ? 'selected' : ''}>2 - 1차/2차 평가</option>
-                                <option value="3" ${user.level === 3 ? 'selected' : ''}>3 - 전체 권한</option>
-                            </select>
-                        </td>
-                        <td class="${statusClass}">${statusText}</td>
-                        <td>${user.registeredDate}</td>
-                        <td>
-                            <button class="btn ${user.active === 'Y' ? 'btn-danger' : 'btn-success'}" 
-                                    style="padding: 5px 10px; font-size: 12px;"
-                                    onclick="toggleUserStatus('${user.email}')"
-                                    ${user.email === currentUser.email ? 'disabled' : ''}>
-                                ${user.active === 'Y' ? '🔒 비활성화' : '🔓 활성화'}
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            listDiv.innerHTML = html;
+                .debugSheetStructure();
         }
         
         function addNewUser() {
@@ -1231,5 +1393,158 @@
             logsDiv.innerHTML = html;
         }
     </script>
+
+<!-- index.html에 추가 -->
+<div id="activitySidebar" class="activity-sidebar">
+    <div class="sidebar-header">
+        <h4>📋 내 작업 내역</h4>
+        <button class="close-btn" onclick="toggleActivitySidebar()">×</button>
+    </div>
+    <div class="sidebar-content">
+        <div id="recentActivities"></div>
+    </div>
+    <div class="sidebar-footer">
+    </div>
+</div>
+
+<style>
+.activity-sidebar {
+    position: fixed;
+    right: -300px;
+    top: 100px;
+    width: 280px;
+    height: calc(100vh - 120px);
+    background: #1a1a1a;
+    border: 1px solid #3f3f3f;
+    border-radius: 12px 0 0 12px;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+    transition: right 0.3s ease;
+    z-index: 1000;
+    display: block !important;
+    overflow: hidden;
+}
+
+/* 플로팅 버튼 추가 */
+.activity-toggle-btn {
+    position: fixed;
+    right: 20px;
+    top: 100px;
+    width: 50px;
+    height: 50px;
+    background: #1a73e8;
+    border-radius: 50%;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    z-index: 999;
+    transition: transform 0.3s;
+}
+
+.activity-toggle-btn:hover {
+    transform: scale(1.1);
+}
+
+.activity-sidebar.show {
+    right: 0;
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-content {
+    height: calc(100% - 120px);
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.activity-item {
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #272727;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.activity-time {
+    color: #666;
+    font-size: 12px;
+}
+</style>
+
+    
 </body>
+
+    
+    <!-- 작업 내역 플로팅 버튼 -->
+    <button class="activity-toggle-btn" onclick="toggleActivitySidebar()" title="작업 내역">📋</button>
+    
+    <script>
+        // ===== 작업내역 사이드바 토글 =====
+        function toggleActivitySidebar() {
+            const sidebar = document.getElementById('activitySidebar');
+            const isVisible = sidebar.classList.contains('show');
+            
+            if (isVisible) {
+                sidebar.classList.remove('show');
+            } else {
+                sidebar.classList.add('show');
+                // 작업 내역 로드
+                loadActivityHistory();
+            }
+        }
+        
+        // ===== 작업내역 로드 =====
+        function loadActivityHistory() {
+            // 로컬 스토리지에서 활동 내역 가져오기
+            const stored = localStorage.getItem('activityHistory');
+            if (stored) {
+                activityHistory = JSON.parse(stored);
+                updateActivitySidebar();
+            } else {
+                // 서버에서 액션 로그 가져오기
+                showLoading(true, '작업 내역 로드 중...');
+                google.script.run
+                    .withSuccessHandler(function(logs) {
+                        displayActionLogs(logs);
+                        showLoading(false);
+                    })
+                    .withFailureHandler(function(error) {
+                        console.error('작업 내역 로드 실패:', error);
+                        showNotification('작업 내역 로드에 실패했습니다', 'error');
+                        showLoading(false);
+                    })
+                    .getActionLogs();
+            }
+        }
+        
+        // ===== 액션 로그 표시 =====
+        function displayActionLogs(logs) {
+            const container = document.getElementById('recentActivities');
+            let html = '';
+            
+            if (!logs || logs.length === 0) {
+                html = '<p style="text-align: center; color: #666;">작업 내역이 없습니다</p>';
+            } else {
+                logs.slice(0, 20).forEach(log => {
+                    html += `
+                        <div class="activity-item">
+                            <div><strong>${log.action}</strong></div>
+                            <div>${log.details}</div>
+                            <div class="activity-time">${log.timestamp}</div>
+                        </div>
+                    `;
+                });
+            }
+            
+            container.innerHTML = html;
+        }
+    </script>
+
 </html>
