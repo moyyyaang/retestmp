@@ -20,8 +20,11 @@ let evaluationData = {
     finalEvalTeamFilter: null
 };
 
-// ===== 다크모드 강제 적용 함수 =====
-function forceDarkMode() {
+// ===== 테마 시스템 (완전히 새로 구현) =====
+function applyDarkMode() {
+    document.body.classList.remove('light-theme');
+    document.body.classList.add('dark-theme');
+    
     const elements = document.querySelectorAll('select, input, textarea');
     elements.forEach(el => {
         el.style.backgroundColor = '#0f0f0f';
@@ -31,13 +34,39 @@ function forceDarkMode() {
     
     const problemSelects = document.querySelectorAll('[id^="teamSelect_"], [id^="memberSelect_"], #managementTeamFilter, #evaluationTeamSelect');
     problemSelects.forEach(select => {
-        select.style.backgroundColor = '#0f0f0f !important';
-        select.style.color = '#f1f1f1 !important';
-        select.style.border = '1px solid #3f3f3f !important';
         select.style.setProperty('background-color', '#0f0f0f', 'important');
         select.style.setProperty('color', '#f1f1f1', 'important');
         select.style.setProperty('border', '1px solid #3f3f3f', 'important');
     });
+}
+
+function applyLightMode() {
+    document.body.classList.remove('dark-theme');
+    document.body.classList.add('light-theme');
+    
+    const elements = document.querySelectorAll('select, input, textarea');
+    elements.forEach(el => {
+        el.style.backgroundColor = '#ffffff';
+        el.style.color = '#333333';
+        el.style.border = '1px solid #cccccc';
+    });
+    
+    const problemSelects = document.querySelectorAll('[id^="teamSelect_"], [id^="memberSelect_"], #managementTeamFilter, #evaluationTeamSelect');
+    problemSelects.forEach(select => {
+        select.style.setProperty('background-color', '#ffffff', 'important');
+        select.style.setProperty('color', '#333333', 'important');
+        select.style.setProperty('border', '1px solid #cccccc', 'important');
+    });
+}
+
+function forceDarkMode() {
+    // 현재 테마 상태 확인
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    if (currentTheme === 'dark') {
+        applyDarkMode();
+    } else {
+        applyLightMode();
+    }
 }
 
 // DOM 변경 감지
@@ -50,12 +79,14 @@ observer.observe(document.body, {
     subtree: true
 });
 
-// ===== 초기 데이터 로드 =====
+// ===== 초기 데이터 로드 (수정된 버전) =====
 function loadInitialData() {
     showLoading(true);
+    
+    // 최적화된 함수 사용
     google.script.run
         .withSuccessHandler(function(data) {
-            console.log('초기 데이터 수신:', data);
+            console.log('초기 데이터 수신 (최적화):', data);
             evaluationData.teams = data.teams;
             evaluationData.members = data.members;
             evaluationData.channels = data.channels;
@@ -63,67 +94,223 @@ function loadInitialData() {
             
             updateAllSelectors();
             
+            // 날짜 초기화 - 여기에 모든 변수 정의
             const currentDate = new Date();
             const currentYear = currentDate.getFullYear();
-            const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const currentMonthValue = currentDate.toISOString().slice(0, 7);
+            const currentMonth = currentDate.getMonth() + 1; // 1-12
             
-            const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
-            const prevMonth = prevDate.toISOString().slice(0, 7);
+            // 전월 계산 - prevDate 정의
+            let prevYear = currentYear;
+            let prevMonth = currentMonth - 1;
+            if (prevMonth === 0) {
+                prevMonth = 12;
+                prevYear = currentYear - 1;
+            }
+
+             const prevMonthStr = String(prevMonth).padStart(2, '0');
             
-            // 각 평가 년/월 설정
+            // 1차 평가 - 전월로 설정
             if (document.getElementById('evalYear')) {
-                document.getElementById('evalYear').value = currentYear;
-                document.getElementById('evalMonthSelect').value = currentMonth;
-                document.getElementById('evalMonth').value = currentMonthValue;
+                document.getElementById('evalYear').value = prevYear;
+                document.getElementById('evalMonthSelect').value = prevMonthStr;
+                document.getElementById('evalMonth').value = `${prevYear}-${prevMonthStr}`;
             }
             
+            // 2차 평가 - 전월로 설정
             if (document.getElementById('evalYear2nd')) {
-                document.getElementById('evalYear2nd').value = currentYear;
-                document.getElementById('evalMonthSelect2nd').value = currentMonth;
-                document.getElementById('evalMonth2nd').value = currentMonthValue;
+                document.getElementById('evalYear2nd').value = prevYear;
+                document.getElementById('evalMonthSelect2nd').value = prevMonthStr;
+                document.getElementById('evalMonth2nd').value = `${prevYear}-${prevMonthStr}`;
             }
             
+            // 3차 평가 - 전월로 설정
             if (document.getElementById('evalYearFinal')) {
-                document.getElementById('evalYearFinal').value = currentYear;
-                document.getElementById('evalMonthSelectFinal').value = currentMonth;
-                document.getElementById('evalMonthFinal').value = currentMonthValue;
+                document.getElementById('evalYearFinal').value = prevYear;
+                document.getElementById('evalMonthSelectFinal').value = prevMonthStr;
+                document.getElementById('evalMonthFinal').value = `${prevYear}-${prevMonthStr}`;
             }
             
+            // 대시보드 비교 날짜 설정
             if (currentUser.level >= 3) {
                 if (document.getElementById('compareYear1')) {
-                    const prevYear = prevDate.getFullYear();
-                    const prevMonthStr = String(prevDate.getMonth() + 1).padStart(2, '0');
-                    document.getElementById('compareYear1').value = prevYear;
-                    document.getElementById('compareMonth1Select').value = prevMonthStr;
-                    window.compareMonth1 = prevMonth;
+                    // 전전월 계산
+                    let prevPrevYear = prevYear;
+                    let prevPrevMonth = prevMonth - 1;
+                    if (prevPrevMonth === 0) {
+                        prevPrevMonth = 12;
+                        prevPrevYear = prevYear - 1;
+                    }
+                    const prevPrevMonthStr = String(prevPrevMonth).padStart(2, '0');
                     
-                    document.getElementById('compareYear2').value = currentYear;
-                    document.getElementById('compareMonth2Select').value = currentMonth;
-                    window.compareMonth2 = currentMonthValue;
+                    document.getElementById('compareYear1').value = prevPrevYear;
+                    document.getElementById('compareMonth1Select').value = prevPrevMonthStr;
+                    window.compareMonth1 = `${prevPrevYear}-${prevPrevMonthStr}`;
+                    
+                    document.getElementById('compareYear2').value = prevYear;
+                    document.getElementById('compareMonth2Select').value = prevMonthStr;
+                    window.compareMonth2 = `${prevYear}-${prevMonthStr}`;
                 }
-            }
-            
-            if (document.getElementById('teamleadSelect') && document.getElementById('teamleadSelect').value && 
-                document.getElementById('evalMonth') && document.getElementById('evalMonth').value) {
-                setTimeout(() => {
-                    checkExistingEvaluation();
-                }, 50);
             }
             
             setTimeout(forceDarkMode, 100);
             
+            // 로딩 종료
             showLoading(false);
             console.log('초기 데이터 로드 완료');
+            
+            // 팀장 선택이 있으면 평가 확인
+            if (document.getElementById('teamleadSelect') && document.getElementById('teamleadSelect').value && 
+                document.getElementById('evalMonth') && document.getElementById('evalMonth').value) {
+                setTimeout(() => {
+                    if (typeof checkExistingEvaluation === 'function') {
+                        checkExistingEvaluation();
+                    }
+                }, 100);
+            }
         })
         .withFailureHandler(function(error) {
             showNotification('데이터 로드 실패: ' + error, 'error');
             showLoading(false);
         })
+        .getInitialDataOptimized();
+}
+
+// ===== 개선된 캐시 시스템 =====
+const advancedCache = {
+    data: new Map(),
+    maxSize: 50, // 최대 캐시 개수
+    maxAge: 10 * 60 * 1000, // 10분 TTL
+    
+    set(key, value) {
+        // 캐시 크기 제한
+        if (this.data.size >= this.maxSize) {
+            const firstKey = this.data.keys().next().value;
+            this.data.delete(firstKey);
+        }
+        
+        this.data.set(key, {
+            value: value,
+            timestamp: Date.now()
+        });
+    },
+    
+    get(key) {
+        const cached = this.data.get(key);
+        if (!cached) return null;
+        
+        // TTL 확인
+        if (Date.now() - cached.timestamp > this.maxAge) {
+            this.data.delete(key);
+            return null;
+        }
+        
+        return cached.value;
+    },
+    
+    clear() {
+        this.data.clear();
+    }
+};
+
+// ===== 평가 데이터는 필요할 때만 로드 (개선된 버전) =====
+function loadEvaluationDataOnDemand(evalMonth, type) {
+    const cacheKey = `${type}_${evalMonth}`;
+    
+    // 고급 캐시 확인
+    const cached = advancedCache.get(cacheKey);
+    if (cached) {
+        console.log(`🚀 캐시에서 ${type} 데이터 로드 (${evalMonth})`);
+        return Promise.resolve(cached);
+    }
+    
+    // sessionStorage 백업 확인
+    const sessionCached = sessionStorage.getItem(cacheKey);
+    if (sessionCached) {
+        try {
+            const data = JSON.parse(sessionCached);
+            advancedCache.set(cacheKey, data);
+            console.log(`💾 세션에서 ${type} 데이터 복원 (${evalMonth})`);
+            return Promise.resolve(data);
+        } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+        }
+    }
+    
+    console.log(`📡 서버에서 ${type} 데이터 로드 (${evalMonth})`);
+    return new Promise((resolve, reject) => {
+        const startTime = performance.now();
+        
+        google.script.run
+            .withSuccessHandler(data => {
+                const loadTime = performance.now() - startTime;
+                console.log(`⏱️ ${type} 로드 시간: ${loadTime.toFixed(2)}ms`);
+                
+                // 캐시에 저장
+                advancedCache.set(cacheKey, data);
+                sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                
+                resolve(data);
+            })
+            .withFailureHandler(reject)
+            [`get${type}EvaluationDataOptimized`](evalMonth);
+    });
+}
+
+// ===== 초기 로드 최적화 버전 =====
+function loadInitialDataOptimized() {
+    perfMonitor.start('initialLoad');
+    showLoading(true);
+    
+    // 캐시 확인
+    const cacheKey = 'initialData';
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached) {
+        console.log('캐시에서 초기 데이터 로드');
+        processInitialData(cached);
+        showLoading(false);
+        perfMonitor.end('initialLoad');
+        return;
+    }
+    
+    // 기존 getInitialData 사용 (getCriticalData가 없으므로)
+    google.script.run
+        .withSuccessHandler(function(data) {
+            dataCache.set(cacheKey, data);
+            processInitialData(data);
+            showLoading(false);
+            perfMonitor.end('initialLoad');
+        })
+        .withFailureHandler(function(error) {
+            showNotification('데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+            perfMonitor.end('initialLoad');
+        })
         .getInitialData();
 }
 
-// ===== 선택 옵션 업데이트 =====
+function processInitialData(data) {
+    evaluationData.teams = data.teams;
+    evaluationData.members = data.members;
+    evaluationData.channels = data.channels;
+    evaluationData.teamleads = data.teamleads;
+    updateAllSelectors();
+    
+    // 현재 날짜 설정 등 초기화 작업
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
+    
+    if (document.getElementById('evalYear')) {
+        document.getElementById('evalYear').value = currentYear;
+        document.getElementById('evalMonthSelect').value = currentMonth;
+    }
+}
+
+
+
+// ===== updateAllSelectors 함수 수정 =====
 function updateAllSelectors() {
     // 팀 선택 옵션 업데이트
     const teamSelects = ['newMemberTeam', 'newChannelTeam'];
@@ -135,6 +322,12 @@ function updateAllSelectors() {
                 const option = document.createElement('option');
                 option.value = teamId;
                 option.textContent = evaluationData.teams[teamId].name;
+                
+                // 레벨 1 사용자의 경우 자신의 팀만 활성화
+                if (currentUser.level === 1 && currentUser.teamId && teamId !== currentUser.teamId) {
+                    option.disabled = true;
+                }
+                
                 select.appendChild(option);
             }
         }
@@ -144,23 +337,33 @@ function updateAllSelectors() {
     const teamleadSelect = document.getElementById('teamleadSelect');
     if (teamleadSelect) {
         teamleadSelect.innerHTML = '<option value="">팀장을 선택하세요</option>';
+        
         evaluationData.teamleads.forEach(teamlead => {
+            if (!evaluationData.teams[teamlead.teamId]) {
+                console.warn('팀 정보 없음:', teamlead.teamId);
+                return;
+            }
+            
             const option = document.createElement('option');
             option.value = teamlead.id;
             option.textContent = `${teamlead.name} (${evaluationData.teams[teamlead.teamId].name})`;
-            option.dataset.email = teamlead.email;
+            option.dataset.email = teamlead.email || '';
             
+            // 현재 사용자와 일치하면 자동 선택
             if (currentUser.email === teamlead.email) {
                 option.selected = true;
             }
             
+            // 레벨 1 사용자는 자신만 선택 가능
             if (currentUser.level === 1 && currentUser.email !== teamlead.email) {
                 option.disabled = true;
+                option.style.color = '#666';
             }
             
             teamleadSelect.appendChild(option);
         });
         
+        // 자동 선택된 경우 평가 확인
         if (teamleadSelect.value) {
             console.log('팀장 자동 선택됨:', teamleadSelect.value);
             setTimeout(() => {
@@ -170,7 +373,7 @@ function updateAllSelectors() {
                         checkExistingEvaluation();
                     }
                 }
-            }, 50);
+            }, 100);
         }
     }
     
@@ -201,14 +404,112 @@ function updateChannelSelectors() {
     forceDarkMode();
 }
 
-// ===== 로딩 표시 =====
-function showLoading(show) {
+// ===== 개선된 로딩 시스템 (중첩 방지 + 자동 해제) =====
+let loadingStack = 0; // 로딩 호출 스택 추적
+let loadingTimeout = null; // 안전장치 타이머
+
+function showLoading(show, message = '처리중...') {
     const loading = document.getElementById('loadingSpinner');
+    const overlay = document.getElementById('loadingOverlay');
+    const container = document.querySelector('.container');
+    
     if (show) {
+        loadingStack++;
+        console.log(`🔒 UI 잠금: 로딩 중... (스택: ${loadingStack})`);
+        
+        // 로딩 스피너 표시
         loading.classList.add('show');
+        overlay.classList.add('show');
+        
+        // 메시지 업데이트
+        const loadingText = loading.querySelector('p');
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
+        
+        // 첫 번째 로딩일 때만 UI 비활성화
+        if (loadingStack === 1) {
+            const interactiveElements = document.querySelectorAll('button, input, select, textarea, .btn, .role-btn');
+            interactiveElements.forEach(element => {
+                element.classList.add('loading-disabled');
+                element.setAttribute('data-was-disabled', element.disabled);
+                element.disabled = true;
+            });
+            
+            if (container) {
+                container.classList.add('loading-disabled');
+            }
+        }
+        
+        // 안전장치: 15초 후 강제 해제
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+        loadingTimeout = setTimeout(() => {
+            console.warn('⚠️ 로딩 타임아웃 - 강제 해제');
+            forceUnlockUI();
+        }, 15000);
+        
     } else {
-        loading.classList.remove('show');
+        loadingStack = Math.max(0, loadingStack - 1);
+        console.log(`🔓 UI 잠금 해제 시도: (스택: ${loadingStack})`);
+        
+        // 모든 로딩이 완료되었을 때만 UI 해제
+        if (loadingStack === 0) {
+            loading.classList.remove('show');
+            overlay.classList.remove('show');
+            
+            // 타이머 해제
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+            
+            // UI 활성화
+            const interactiveElements = document.querySelectorAll('.loading-disabled');
+            interactiveElements.forEach(element => {
+                element.classList.remove('loading-disabled');
+                
+                const wasDisabled = element.getAttribute('data-was-disabled');
+                element.disabled = wasDisabled === 'true';
+                element.removeAttribute('data-was-disabled');
+            });
+            
+            if (container) {
+                container.classList.remove('loading-disabled');
+            }
+            
+            console.log('✅ UI 완전 해제 완료');
+        }
     }
+}
+
+// 강제 UI 해제 함수 (안전장치)
+function forceUnlockUI() {
+    loadingStack = 0;
+    const loading = document.getElementById('loadingSpinner');
+    const overlay = document.getElementById('loadingOverlay');
+    const container = document.querySelector('.container');
+    
+    if (loading) loading.classList.remove('show');
+    if (overlay) overlay.classList.remove('show');
+    
+    if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = null;
+    }
+    
+    const interactiveElements = document.querySelectorAll('.loading-disabled');
+    interactiveElements.forEach(element => {
+        element.classList.remove('loading-disabled');
+        const wasDisabled = element.getAttribute('data-was-disabled');
+        element.disabled = wasDisabled === 'true';
+        element.removeAttribute('data-was-disabled');
+    });
+    
+    if (container) {
+        container.classList.remove('loading-disabled');
+    }
+    
+    console.log('🚨 강제 UI 해제 완료');
 }
 
 // ===== 알림 표시 (새로운 알림 시스템 사용) =====
@@ -270,9 +571,25 @@ function loadTeamMembersForAnalysis() {
         return;
     }
     
+    // 팀원 목록
     const teamMembers = evaluationData.members.filter(m => m.teamId === teamId);
-    memberSelect.innerHTML = '<option value="">팀원을 선택하세요</option>';
     
+    // 팀장 찾기
+    const teamleader = evaluationData.teamleads.find(tl => tl.teamId === teamId);
+    
+    memberSelect.innerHTML = '<option value="">선택하세요</option>';
+    
+    // 팀장 먼저 추가
+    if (teamleader) {
+        const option = document.createElement('option');
+        option.value = `TL_${teamleader.id}`; // 팀장은 TL_ 접두사 추가
+        option.textContent = `👔 ${teamleader.name} (팀장)`;
+        option.style.fontWeight = 'bold';
+        option.style.color = '#1a73e8';
+        memberSelect.appendChild(option);
+    }
+    
+    // 팀원들 추가
     teamMembers.forEach(member => {
         const option = document.createElement('option');
         option.value = member.id;
@@ -543,13 +860,80 @@ function drawTrendChart(data, type) {
 
 // ===== 권한 관리 함수들 =====
 function loadPermissionsList() {
+    console.log('=== loadPermissionsList 함수 실행 ===');
+    console.log('현재 사용자:', JSON.stringify(currentUser, null, 2));
+    
+    // 권한 확인
+    if (!currentUser) {
+        console.error('❌ currentUser 정보가 없습니다');
+        showNotification('사용자 정보를 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    if (currentUser.level < 3) {
+        console.error('❌ 권한 부족:', currentUser.level);
+        showNotification(`권한 관리 접근 권한이 없습니다. (현재 레벨: ${currentUser.level}, 필요: 3)`, 'error');
+        return;
+    }
+    
+    console.log('✅ 권한 확인 통과 (레벨:', currentUser.level, ')');
+    
+    // DOM 요소 확인
+    const listDiv = document.getElementById('permissionsList');
+    console.log('permissionsList 요소:', listDiv);
+    if (!listDiv) {
+        console.error('permissionsList 요소를 찾을 수 없습니다');
+        showNotification('페이지 구성 요소를 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    // 임시로 로딩 메시지 표시
+    listDiv.innerHTML = '<p style="text-align: center; padding: 20px;">권한 목록을 불러오는 중...</p>';
+    
+    console.log('서버 호출 시작...');
     showLoading(true);
     google.script.run
         .withSuccessHandler(function(permissions) {
-            displayPermissionsList(permissions);
+            console.log('✅ 권한 목록 받음:', JSON.stringify(permissions, null, 2));
+            console.log('데이터 타입:', typeof permissions);
+            console.log('Array 여부:', Array.isArray(permissions));
+            
+            if (permissions && Array.isArray(permissions)) {
+                console.log('권한 목록 개수:', permissions.length);
+                displayPermissionsList(permissions);
+                showNotification(`권한 목록 로드 성공 (${permissions.length}개)`, 'success');
+            } else {
+                console.error('❌ 잘못된 권한 데이터:', permissions);
+                listDiv.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: red;">
+                        <h4>❌ 권한 데이터 로드 실패</h4>
+                        <p>데이터 타입: ${typeof permissions}</p>
+                        <p>Array 여부: ${Array.isArray(permissions)}</p>
+                        <p>내용: ${JSON.stringify(permissions)}</p>
+                        <button onclick="loadPermissionsList()" style="margin-top: 10px; padding: 5px 10px;">🔄 다시 시도</button>
+                    </div>
+                `;
+                showNotification('권한 데이터 형식이 올바르지 않습니다.', 'error');
+            }
             showLoading(false);
         })
         .withFailureHandler(function(error) {
+            console.error('❌ 권한 목록 로드 에러:', error);
+            console.error('에러 타입:', typeof error);
+            console.error('에러 내용:', JSON.stringify(error, null, 2));
+            
+            listDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: red;">
+                    <h4>❌ 서버 호출 실패</h4>
+                    <p><strong>에러 메시지:</strong> ${error}</p>
+                    <p><strong>에러 타입:</strong> ${typeof error}</p>
+                    <details style="margin-top: 10px;">
+                        <summary>상세 정보</summary>
+                        <pre style="text-align: left; font-size: 12px;">${JSON.stringify(error, null, 2)}</pre>
+                    </details>
+                    <button onclick="loadPermissionsList()" style="margin-top: 10px; padding: 5px 10px; cursor: pointer;">🔄 다시 시도</button>
+                </div>
+            `;
             showNotification('권한 목록 로드 실패: ' + error, 'error');
             showLoading(false);
         })
@@ -557,7 +941,17 @@ function loadPermissionsList() {
 }
 
 function displayPermissionsList(permissions) {
+    console.log('=== displayPermissionsList 함수 실행 ===');
+    console.log('받은 권한 데이터:', permissions);
+    console.log('권한 데이터 개수:', permissions.length);
+    
     const listDiv = document.getElementById('permissionsList');
+    console.log('permissionsList DOM 요소:', listDiv);
+    if (!listDiv) {
+        console.error('❌ permissionsList 요소를 찾을 수 없습니다');
+        return;
+    }
+    
     let html = `
         <table class="evaluation-table">
             <thead>
@@ -606,7 +1000,37 @@ function displayPermissionsList(permissions) {
     });
     
     html += '</tbody></table>';
+    
+    console.log('생성된 HTML 길이:', html.length);
+    console.log('HTML 미리보기:', html.substring(0, 200) + '...');
+    
+    // DOM에 HTML 적용
     listDiv.innerHTML = html;
+    
+    // 강제로 가시성 보장
+    listDiv.style.display = 'block';
+    listDiv.style.visibility = 'visible';
+    listDiv.style.opacity = '1';
+    listDiv.style.width = '100%';
+    
+    // 테이블 요소도 강제 가시성 보장
+    const table = listDiv.querySelector('.evaluation-table');
+    if (table) {
+        table.style.display = 'table';
+        table.style.width = '100%';
+        table.style.visibility = 'visible';
+        table.style.opacity = '1';
+        console.log('✅ 테이블 가시성 강제 적용');
+    }
+    
+    console.log('✅ HTML이 DOM에 적용됨');
+    console.log('listDiv.innerHTML 길이:', listDiv.innerHTML.length);
+    console.log('listDiv 스타일 확인:', {
+        display: listDiv.style.display,
+        visibility: listDiv.style.visibility,
+        opacity: listDiv.style.opacity,
+        width: listDiv.style.width
+    });
 }
 
 function addNewUser() {
@@ -620,7 +1044,8 @@ function addNewUser() {
         return;
     }
     
-    if (!email.endsWith('@awesomeent.kr')) {showNotification('회사 이메일(@awesomeent.kr)만 등록 가능합니다.', 'error');
+    if (!email.endsWith('@awesomeent.kr')) {
+        showNotification('회사 이메일(@awesomeent.kr)만 등록 가능합니다.', 'error');
         return;
     }
     
@@ -707,6 +1132,11 @@ function loadActionLogs() {
 function displayActionLogs(logs) {
     const logsDiv = document.getElementById('actionLogsList');
     
+    if (!logsDiv) {
+        console.error('actionLogsList 요소를 찾을 수 없습니다');
+        return;
+    }
+    
     if (logs.length === 0) {
         logsDiv.innerHTML = '<p style="text-align: center; color: #aaa;">액션 로그가 없습니다.</p>';
         return;
@@ -743,6 +1173,9 @@ function displayActionLogs(logs) {
 
 // ===== 역할 전환 함수 =====
 function switchRole(role) {
+    console.log('🎯 switchRole 함수 호출됨, role:', role);
+    console.log('currentUser:', currentUser);
+    
     document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.role-content').forEach(content => content.classList.remove('active'));
     
@@ -782,9 +1215,55 @@ function switchRole(role) {
             return;
         }
         const permissionContent = document.getElementById('permissionContent');
+        console.log('=== 권한관리 페이지 활성화 시도 ===');
+        console.log('permissionContent 요소:', permissionContent);
+        console.log('permissionContent 존재:', !!permissionContent);
+        console.log('currentUser.level:', currentUser.level);
+        
         if (permissionContent) {
+            console.log('permissionContent의 현재 display:', getComputedStyle(permissionContent).display);
+            console.log('permissionContent의 현재 클래스:', permissionContent.className);
+        }
+        
+        if (permissionContent) {
+            // 다른 모든 페이지 비활성화 먼저
+            document.querySelectorAll('.role-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 권한관리 페이지 활성화
             permissionContent.classList.add('active');
-            loadPermissionsList();
+            permissionContent.style.setProperty('display', 'block', 'important');
+            permissionContent.style.setProperty('visibility', 'visible', 'important');
+            permissionContent.style.setProperty('opacity', '1', 'important');
+            permissionContent.style.setProperty('position', 'relative', 'important');
+            permissionContent.style.setProperty('z-index', '999', 'important');
+            
+            console.log('✅ 권한 관리 페이지 활성화됨');
+            console.log('permissionContent.classList:', permissionContent.classList.toString());
+            console.log('permissionContent의 활성화 후 display:', getComputedStyle(permissionContent).display);
+            console.log('permissionContent의 활성화 후 visibility:', getComputedStyle(permissionContent).visibility);
+            console.log('permissionContent의 활성화 후 opacity:', getComputedStyle(permissionContent).opacity);
+            
+            // 강제 스타일 재적용 (최종 안전장치)
+            setTimeout(() => {
+                if (getComputedStyle(permissionContent).display === 'none') {
+                    console.warn('⚠️ CSS 강제 재적용 필요');
+                    permissionContent.setAttribute('style', 
+                        'display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 999 !important;'
+                    );
+                    console.log('🔧 CSS 강제 재적용 완료');
+                }
+            }, 50);
+            
+            // 권한 목록 로드
+            setTimeout(() => {
+                console.log('🔄 loadPermissionsList 호출 시도');
+                loadPermissionsList();
+            }, 100);
+        } else {
+            console.error('❌ permissionContent 요소를 찾을 수 없습니다');
+            showNotification('권한 관리 페이지를 찾을 수 없습니다.', 'error');
         }
     }
     
@@ -853,4 +1332,953 @@ window.onload = function() {
         }
     }, 50);
 };
+
+// 단축키 이벤트 리스너
+document.addEventListener('keydown', function(e) {
+    // Ctrl+S: 현재 평가 저장
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        
+        // 현재 활성화된 평가 화면 확인
+        if (document.getElementById('teamleadContent').classList.contains('active')) {
+            const submitBtn = document.getElementById('submitFirstEvalBtn');
+            if (submitBtn && submitBtn.style.display !== 'none') {
+                submitFirstEvaluation();
+            }
+        } else if (document.getElementById('managerContent').classList.contains('active')) {
+            const submitBtn = document.getElementById('submitSecondEvalBtn');
+            if (submitBtn && submitBtn.style.display !== 'none') {
+                submitSecondEvaluation();
+            }
+        } else if (document.getElementById('executiveContent').classList.contains('active')) {
+            const submitBtn = document.getElementById('submitFinalEvalBtn');
+            if (submitBtn && submitBtn.style.display !== 'none') {
+                submitFinalEvaluation();
+            }
+        }
+    }
+    
+    // Esc: 팝업 닫기
+    if (e.key === 'Escape') {
+        // 알림 팝업 닫기
+        const notification = document.getElementById('notificationPopup');
+        if (notification && notification.classList.contains('show')) {
+            closeNotification();
+        }
+        
+        // 상세정보 패널 닫기
+        const detailPanels = document.querySelectorAll('.detail-panel.show');
+        detailPanels.forEach(panel => {
+            panel.classList.remove('show');
+        });
+    }
+});
+
+// ===== 테마 토글 시스템 (수정된 버전) =====
+function toggleTheme() {
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // 테마 아이콘 업데이트
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+        themeIcon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+    }
+    
+    // 테마 저장
+    localStorage.setItem('theme', newTheme);
+    
+    // 테마 적용
+    if (newTheme === 'dark') {
+        applyDarkMode();
+    } else {
+        applyLightMode();
+    }
+    
+    // 애니메이션 효과
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+        themeBtn.style.transform = 'rotate(360deg)';
+        themeBtn.style.transition = 'transform 0.3s ease';
+        setTimeout(() => {
+            themeBtn.style.transform = '';
+        }, 300);
+    }
+    
+    showNotification(`${newTheme === 'dark' ? '🌙 다크' : '☀️ 라이트'} 모드로 전환되었습니다`, 'success', 2000);
+}
+
+// ===== 페이지 로드 시 저장된 테마 적용 =====
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    
+    // 테마 아이콘 업데이트
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+        themeIcon.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+    }
+    
+    // 테마 적용
+    if (savedTheme === 'dark') {
+        applyDarkMode();
+    } else {
+        applyLightMode();
+    }
+}
+
+// Tab 키는 기본 동작 유지 (다음 입력 필드로 이동)
+
+// ===== 이전 달 데이터 복사 기능 =====
+function copyFromPreviousMonth() {
+    const currentMonth = document.getElementById('evalMonth').value;
+    if (!currentMonth) {
+        showNotification('현재 평가월을 먼저 선택해주세요.', 'error');
+        return;
+    }
+    
+    // 이전 달 계산
+    const [year, month] = currentMonth.split('-');
+    const previousDate = new Date(parseInt(year), parseInt(month) - 2, 1);
+    const previousMonth = previousDate.toISOString().slice(0, 7);
+    
+    if (!confirm(`${previousMonth}의 평가 데이터를 복사하시겠습니까?`)) {
+        return;
+    }
+    
+    showLoading(true);
+    
+    // 이전 달 데이터 가져오기
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.evaluations && Object.keys(result.evaluations).length > 0) {
+                // 현재 선택된 채널들에 대해 이전 달 데이터 적용
+                for (const channelId in result.evaluations) {
+                    if (evaluationData.currentChannels[channelId]) {
+                        const prevData = result.evaluations[channelId];
+                        prevData.members.forEach(prevMember => {
+                            // MM 값 복사
+                            const mmInput = document.getElementById(`mm_${channelId}_${prevMember.id}`);
+                            if (mmInput) {
+                                mmInput.value = prevMember.mm || '';
+                            }
+                            
+                            // 기여도 복사
+                            const contribInput = document.getElementById(`contrib_${channelId}_${prevMember.id}`);
+                            if (contribInput) {
+                                contribInput.value = prevMember.contribution1 || '';
+                            }
+                            
+                            // 성과 복사
+                            const achievementContainer = document.getElementById(`achievements_${channelId}_${prevMember.id}`);
+                            if (achievementContainer && prevMember.achievement) {
+                                const achievements = prevMember.achievement.split('|');
+                                achievementContainer.innerHTML = '';
+                                achievements.forEach(achievement => {
+                                    if (achievement.trim()) {
+                                        const newItem = document.createElement('div');
+                                        newItem.className = 'achievement-item';
+                                        newItem.innerHTML = `
+                                            <input type="text" placeholder="핵심 성과 입력" value="${achievement}">
+                                            <button onclick="removeAchievement(this)" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">❌</button>
+                                        `;
+                                        achievementContainer.appendChild(newItem);
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // 채널 코멘트 복사
+                        const channelCommentInput = document.getElementById(`channelCommentText_${channelId}`);
+                        if (channelCommentInput && prevData.channelComment) {
+                            channelCommentInput.value = prevData.channelComment;
+                        }
+                        
+                        // 합계 업데이트
+                        updateMMTotal(channelId);
+                        updateContributionBar(channelId);
+                    }
+                }
+                
+                showNotification(`${previousMonth}의 데이터를 복사했습니다.`, 'success');
+            } else {
+                showNotification(`${previousMonth}의 평가 데이터가 없습니다.`, 'warning');
+            }
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('이전 달 데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getFirstEvaluationByTeamlead(previousMonth, evaluationData.currentTeamleadId);
+}
+
+// ===== 성능 최적화: 데이터 캐싱 =====
+const dataCache = {
+    channelMembers: {},
+    evaluationData: {},
+    cacheTimeout: 5 * 60 * 1000, // 5분
+    
+    set(key, data) {
+        this[key] = {
+            data: data,
+            timestamp: Date.now()
+        };
+    },
+    
+    get(key) {
+        const cached = this[key];
+        if (cached && (Date.now() - cached.timestamp < this.cacheTimeout)) {
+            return cached.data;
+        }
+        return null;
+    },
+    
+    clear() {
+        this.channelMembers = {};
+        this.evaluationData = {};
+    }
+};
+
+// 캐싱을 활용한 채널 멤버 로드
+function loadChannelMembersWithCache(channelId) {
+    const cached = dataCache.get(`channelMembers_${channelId}`);
+    if (cached) {
+        displayChannelMembers(channelId, cached);
+        return;
+    }
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(members) {
+            dataCache.set(`channelMembers_${channelId}`, members);
+            displayChannelMembers(channelId, members);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('채널 멤버 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getChannelMembersData(channelId);
+}
+
+// ===== 페이징 처리 =====
+const pagination = {
+    pageSize: 20,
+    currentPage: 1,
+    
+    paginate(data, page = 1) {
+        const start = (page - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return {
+            data: data.slice(start, end),
+            totalPages: Math.ceil(data.length / this.pageSize),
+            currentPage: page
+        };
+    }
+};
+
+// ===== 비동기 일괄 처리 =====
+async function batchProcessChannels(channelIds, processor) {
+    const batchSize = 5;
+    const results = [];
+    
+    for (let i = 0; i < channelIds.length; i += batchSize) {
+        const batch = channelIds.slice(i, i + batchSize);
+        const batchPromises = batch.map(channelId => processor(channelId));
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+        
+        // 진행률 표시
+        const progress = Math.round((i + batch.length) / channelIds.length * 100);
+        updateProgressBar(progress);
+    }
+    
+    return results;
+}
+
+// 진행률 표시 함수
+function updateProgressBar(percentage) {
+    let progressBar = document.getElementById('batchProgressBar');
+    if (!progressBar) {
+        progressBar = document.createElement('div');
+        progressBar.id = 'batchProgressBar';
+        progressBar.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 30px;
+            background: #272727;
+            border-radius: 15px;
+            overflow: hidden;
+            z-index: 9999;
+        `;
+        progressBar.innerHTML = `
+            <div style="width: ${percentage}%; height: 100%; background: #1a73e8; transition: width 0.3s;">
+                <span style="color: white; line-height: 30px; padding-left: 10px;">${percentage}%</span>
+            </div>
+        `;
+        document.body.appendChild(progressBar);
+    } else {
+        const fill = progressBar.querySelector('div');
+        fill.style.width = `${percentage}%`;
+        fill.querySelector('span').textContent = `${percentage}%`;
+    }
+    
+    if (percentage >= 100) {
+        setTimeout(() => progressBar.remove(), 1000);
+    }
+}
+
+// ===== 자동 저장 기능 =====
+let autoSaveTimer = null;
+let hasUnsavedChanges = false;
+
+function markAsUnsaved() {
+    hasUnsavedChanges = true;
+    
+    // 자동 저장 타이머 리셋
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+    }
+    
+    // 5분 후 자동 저장
+    autoSaveTimer = setTimeout(() => {
+        if (hasUnsavedChanges) {
+            autoSave();
+        }
+    }, 5 * 60 * 1000);
+}
+
+function autoSave() {
+    if (!hasUnsavedChanges) return;
+    
+    showNotification('자동 저장 중...', 'info');
+    
+    // 현재 활성화된 평가 화면에 따라 저장
+    if (document.getElementById('teamleadContent').classList.contains('active')) {
+        const submitBtn = document.getElementById('submitFirstEvalBtn');
+        if (submitBtn && submitBtn.style.display !== 'none') {
+            submitFirstEvaluation();
+        }
+    } else if (document.getElementById('managerContent').classList.contains('active')) {
+        submitSecondEvaluationSelective();
+    } else if (document.getElementById('executiveContent').classList.contains('active')) {
+        submitFinalEvaluationSelective();
+    }
+    
+    hasUnsavedChanges = false;
+}
+
+// 실시간 동기화 체크
+function checkForUpdates() {
+    const evalMonth = document.getElementById('evalMonth')?.value || 
+                     document.getElementById('evalMonth2nd')?.value || 
+                     document.getElementById('evalMonthFinal')?.value;
+                     
+    if (!evalMonth) return;
+    
+    google.script.run
+        .withSuccessHandler(function(conflict) {
+            if (conflict.hasConflict) {
+                showNotification(
+                    `⚠️ ${conflict.lastUser}님이 ${conflict.lastModified}에 수정했습니다. 새로고침을 권장합니다.`,
+                    'warning'
+                );
+            }
+        })
+        .withFailureHandler(function(error) {
+            console.error('업데이트 확인 실패:', error);
+        })
+        .checkForConflicts(evalMonth, null);
+}
+
+// 10분마다 업데이트 확인
+setInterval(checkForUpdates, 10 * 60 * 1000);
+
+// 페이지 나가기 전 경고
+window.addEventListener('beforeunload', function(e) {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '저장하지 않은 변경사항이 있습니다. 정말 나가시겠습니까?';
+    }
+});
+
+// 입력 필드 변경 감지
+document.addEventListener('input', function(e) {
+    if (e.target.matches('input[type="number"], textarea')) {
+        markAsUnsaved();
+    }
+});
+
+// ===== 채널 MM 합계 계산 함수 =====
+function calculateChannelMMTotal(channelId) {
+    let totalMM = 0;
+    
+    // 1차 평가 화면
+    if (evaluationData.currentChannels[channelId]) {
+        evaluationData.currentChannels[channelId].forEach(member => {
+            const mmInput = document.getElementById(`mm_${channelId}_${member.id}`);
+            if (mmInput) {
+                totalMM += parseFloat(mmInput.value) || 0;
+            }
+        });
+    }
+    // 2차 평가 화면
+    else if (evaluationData.firstEvaluation[channelId]) {
+        evaluationData.firstEvaluation[channelId].members.forEach(member => {
+            totalMM += parseFloat(member.mm) || 0;
+        });
+    }
+    // 3차 평가 화면
+    else if (evaluationData.secondEvaluation[channelId]) {
+        evaluationData.secondEvaluation[channelId].members.forEach(member => {
+            totalMM += parseFloat(member.mm) || 0;
+        });
+    }
+    
+    return totalMM;
+}
+
+// ===== 채널 정렬 함수 =====
+function sortChannelsByMM() {
+    let container = null;
+    let channels = [];
+    
+    // 현재 활성화된 평가 화면 확인
+    if (document.getElementById('teamleadContent').classList.contains('active')) {
+        // 1차 평가
+        container = document.getElementById('channelEvaluationsArea');
+        if (container) {
+            channels = Array.from(container.querySelectorAll('.channel-evaluation-section'));
+        }
+    } else if (document.getElementById('managerContent').classList.contains('active')) {
+        // 2차 평가
+        container = document.getElementById('secondEvaluationArea');
+        if (container) {
+            // 팀 그룹 섹션들을 찾아서 각각 정렬
+            const teamGroups = container.querySelectorAll('.team-group-section');
+            teamGroups.forEach(teamGroup => {
+                const teamChannels = Array.from(teamGroup.querySelectorAll('.summary-box'));
+                
+                const channelData = teamChannels.map(element => {
+                    // 채널 ID 찾기
+                    let channelId = null;
+                    const totalMMElement = element.querySelector('[id^="totalMM_"]');
+                    if (totalMMElement) {
+                        channelId = totalMMElement.id.replace('totalMM_', '');
+                    } else {
+                        // 2차 평가에서는 테이블을 통해 MM 합계 계산
+                        const table = element.querySelector('table');
+                        if (table) {
+                            const rows = table.querySelectorAll('tbody tr');
+                            let totalMM = 0;
+                            rows.forEach(row => {
+                                const mmCell = row.cells[2]; // MM 컬럼
+                                if (mmCell) {
+                                    totalMM += parseFloat(mmCell.textContent) || 0;
+                                }
+                            });
+                            return {
+                                element: element,
+                                totalMM: totalMM
+                            };
+                        }
+                    }
+                    
+                    return {
+                        element: element,
+                        channelId: channelId,
+                        totalMM: channelId ? calculateChannelMMTotal(channelId) : 0
+                    };
+                });
+                
+                // MM 합계 기준 내림차순 정렬
+                channelData.sort((a, b) => b.totalMM - a.totalMM);
+                
+                // DOM 재배치
+                channelData.forEach(data => {
+                    teamGroup.appendChild(data.element);
+                });
+            });
+            
+            showNotification('채널이 MM 합계 기준으로 정렬되었습니다.', 'success');
+            return;
+        }
+    } else if (document.getElementById('executiveContent').classList.contains('active')) {
+        // 3차 평가
+        container = document.getElementById('finalEvaluationArea');
+        if (container) {
+            // 팀 그룹 섹션들을 찾아서 각각 정렬
+            const teamGroups = container.querySelectorAll('.team-group-section');
+            teamGroups.forEach(teamGroup => {
+                const teamChannels = Array.from(teamGroup.querySelectorAll('.summary-box'));
+                
+                const channelData = teamChannels.map(element => {
+                    // MM 합계 찾기
+                    const summaryItems = element.querySelectorAll('.summary-item');
+                    let totalMM = 0;
+                    
+                    summaryItems.forEach(item => {
+                        const label = item.querySelector('.summary-label');
+                        if (label && label.textContent.includes('투입 MM 합계')) {
+                            const value = item.querySelector('.summary-value');
+                            if (value) {
+                                totalMM = parseFloat(value.textContent) || 0;
+                            }
+                        }
+                    });
+                    
+                    return {
+                        element: element,
+                        totalMM: totalMM
+                    };
+                });
+                
+                // MM 합계 기준 내림차순 정렬
+                channelData.sort((a, b) => b.totalMM - a.totalMM);
+                
+                // DOM 재배치
+                channelData.forEach(data => {
+                    teamGroup.appendChild(data.element);
+                });
+            });
+            
+            showNotification('채널이 MM 합계 기준으로 정렬되었습니다.', 'success');
+            return;
+        }
+    }
+    
+    // 1차 평가의 경우 처리
+    if (channels.length > 0) {
+        const channelData = channels.map(element => {
+            const channelId = element.dataset.channelId;
+            return {
+                element: element,
+                channelId: channelId,
+                totalMM: calculateChannelMMTotal(channelId)
+            };
+        });
+        
+        // MM 합계 기준 내림차순 정렬
+        channelData.sort((a, b) => b.totalMM - a.totalMM);
+        
+        // DOM 재배치
+        channelData.forEach(data => {
+            container.appendChild(data.element);
+        });
+        
+        showNotification('채널이 MM 합계 기준으로 정렬되었습니다.', 'success');
+    }
+}
+
+// ===== 월별 성과금 조회 함수 =====
+function loadMonthlyPayment() {
+    const year = document.getElementById('paymentYear').value;
+    const month = document.getElementById('paymentMonth').value;
+    const teamId = document.getElementById('paymentTeam').value;
+    
+    if (!teamId) {
+        showNotification('팀을 선택해주세요.', 'error');
+        return;
+    }
+    
+    const evalMonth = `${year}-${month}`;
+    
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            displayMonthlyPayment(data, evalMonth, teamId);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getTeamMonthlyPayment(evalMonth, teamId);
+}
+
+function displayMonthlyPayment(data, evalMonth, teamId) {
+    const area = document.getElementById('monthlyPaymentArea');
+    const teamName = evaluationData.teams[teamId].name;
+    
+    // 팀장 성과금 조회
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(teamLeaderData) {
+            // 팀장 찾기
+            let teamLeaderPayment = null;
+            for (const leaderId in teamLeaderData) {
+                if (teamLeaderData[leaderId].teamId === teamId) {
+                    teamLeaderPayment = teamLeaderData[leaderId];
+                    break;
+                }
+            }
+            
+            // 기존 팀원 데이터에 팀장 추가
+            const allMembers = {...data.members};
+            if (teamLeaderPayment) {
+                allMembers[teamLeaderPayment.name] = {
+                    channels: teamLeaderPayment.channels,
+                    total: teamLeaderPayment.total,
+                    isTeamLeader: true
+                };
+            }
+            
+            // 배열로 변환
+            const membersArray = [];
+            for (const memberName in allMembers) {
+                membersArray.push({
+                    name: memberName,
+                    channels: allMembers[memberName].channels,
+                    total: allMembers[memberName].total,
+                    isTeamLeader: allMembers[memberName].isTeamLeader || false
+                });
+            }
+            
+            // 정렬
+            if (!window.paymentSortOrder) {
+                window.paymentSortOrder = 'desc';
+            }
+            
+            membersArray.sort((a, b) => {
+                return window.paymentSortOrder === 'desc' ? b.total - a.total : a.total - b.total;
+            });
+            
+            // HTML 생성 시작
+            let html = `
+                <h3>💰 ${evalMonth} ${teamName} 성과금 지급 내역</h3>
+                <div class="summary-box">
+                    <h4>팀 총계</h4>
+                    <div class="summary-item">
+                        <span class="summary-label">팀원 성과금:</span>
+                        <span class="summary-value amount">${(data.totalAmount/10000).toFixed(1)}만원</span>
+                    </div>
+                    ${teamLeaderPayment ? `
+                    <div class="summary-item">
+                        <span class="summary-label">팀장 성과금:</span>
+                        <span class="summary-value amount">${(teamLeaderPayment.total/10000).toFixed(1)}만원</span>
+                    </div>
+                    <div class="summary-item" style="border-top: 1px solid #3f3f3f; padding-top: 10px;">
+                        <span class="summary-label">전체 총계:</span>
+                        <span class="summary-value amount" style="font-size: 20px; color: #1a73e8;">
+                            ${((data.totalAmount + teamLeaderPayment.total)/10000).toFixed(1)}만원
+                        </span>
+                    </div>
+                    ` : ''}
+                    <div class="summary-item">
+                        <span class="summary-label">지급 인원:</span>
+                        <span class="summary-value">${membersArray.length}명</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-primary" onclick="sortMonthlyPayment('${evalMonth}', '${teamId}')">
+                            🔄 금액순 정렬 (${window.paymentSortOrder === 'desc' ? '↓ 높은순' : '↑ 낮은순'})
+                        </button>
+                    </div>
+                </div>
+                
+                <table class="evaluation-table">
+                    <thead>
+                        <tr>
+                            <th>순위</th>
+                            <th>구분</th>
+                            <th>이름</th>
+                            <th>채널별 성과금</th>
+                            <th>총 성과금</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // ⭐️ 여기가 테이블 행을 만드는 부분입니다 - 순위 스타일 적용
+            membersArray.forEach((member, index) => {
+                const channelDetails = member.channels.map(ch => 
+                    `${ch.channelName}: ${(ch.amount/10000).toFixed(1)}만원`
+                ).join('<br>');
+                
+                // 순위별 스타일 적용
+                let rankStyle = '';
+                if (window.paymentSortOrder === 'desc') {
+                    if (index === 0) rankStyle = 'color: #FFD700; font-weight: bold;'; // 금색
+                    else if (index === 1) rankStyle = 'color: #C0C0C0; font-weight: bold;'; // 은색
+                    else if (index === 2) rankStyle = 'color: #CD7F32; font-weight: bold;'; // 동색
+                }
+                
+                html += `
+                    <tr>
+                        <td style="${rankStyle}">${index + 1}위</td>
+                        <td>${member.isTeamLeader ? '<span style="color: #1a73e8; font-weight: bold;">👔 팀장</span>' : '팀원'}</td>
+                        <td>${member.name}</td>
+                        <td>${channelDetails}</td>
+                        <td class="amount" style="font-weight: bold;">${(member.total/10000).toFixed(1)}만원</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            
+            // ⭐️ 여기가 TOP 3 요약을 추가하는 부분입니다
+            // 상위 3명 요약 (내림차순일 때만)
+            if (window.paymentSortOrder === 'desc' && membersArray.length >= 3) {
+                html += `
+                    <div class="summary-box" style="margin-top: 20px;">
+                        <h4>🏆 TOP 3</h4>
+                        <div style="display: flex; gap: 20px; justify-content: center; margin-top: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 24px;">🥇</div>
+                                <div style="font-weight: bold;">${membersArray[0].name}</div>
+                                <div class="amount">${(membersArray[0].total/10000).toFixed(1)}만원</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 24px;">🥈</div>
+                                <div style="font-weight: bold;">${membersArray[1].name}</div>
+                                <div class="amount">${(membersArray[1].total/10000).toFixed(1)}만원</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 24px;">🥉</div>
+                                <div style="font-weight: bold;">${membersArray[2].name}</div>
+                                <div class="amount">${(membersArray[2].total/10000).toFixed(1)}만원</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            area.innerHTML = html;
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            console.error('팀장 데이터 로드 실패:', error);
+            showLoading(false);
+        })
+        .getTeamLeaderPayments(evalMonth);
+}
+
+// ===== 정렬 함수 =====
+function sortMonthlyPayment(evalMonth, teamId) {
+    // 정렬 순서 토글
+    window.paymentSortOrder = window.paymentSortOrder === 'desc' ? 'asc' : 'desc';
+    
+    // 데이터 다시 로드
+    showLoading(true);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            displayMonthlyPayment(data, evalMonth, teamId);
+            showLoading(false);
+        })
+        .withFailureHandler(function(error) {
+            showNotification('데이터 로드 실패: ' + error, 'error');
+            showLoading(false);
+        })
+        .getTeamMonthlyPayment(evalMonth, teamId);
+}
+
+
+// ===== 즉시 효과를 볼 수 있는 Quick Fixes =====
+
+// 1. 로딩 표시 개선 - 사용자가 기다리는 동안 진행 상황 표시
+function showLoadingWithProgress(message) {
+    const loading = document.getElementById('loadingSpinner');
+    loading.innerHTML = `
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; text-align: center;">${message || '처리중...'}</p>
+        <div class="loading-progress" style="margin-top: 10px;">
+            <div class="loading-progress-bar"></div>
+        </div>
+    `;
+    loading.classList.add('show');
+}
+
+// 2. 디바운싱 강화 - debounce 함수가 정의된 후에 실행
+let debouncedCheckExistingEvaluation;
+if (typeof debounce === 'function') {
+    debouncedCheckExistingEvaluation = debounce(checkExistingEvaluation, 500);
+}
+
+// 3. 선택적 로드 - 보이는 것만 먼저
+function lazyLoadEvaluations() {
+    const visibleChannels = document.querySelectorAll('.channel-evaluation-section:not([data-loaded])');
+    visibleChannels.forEach(channel => {
+        if (isElementInViewport(channel)) {
+            loadChannelDetails(channel.dataset.channelId);
+            channel.dataset.loaded = 'true';
+        }
+    });
+}
+
+// 뷰포트에 있는지 확인하는 헬퍼 함수
+function isElementInViewport(el) {
+    const rect = el.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
+
+// 평가 데이터는 필요할 때만 로드
+function loadEvaluationDataOnDemand(evalMonth, type) {
+    const cacheKey = `${type}_${evalMonth}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    
+    if (cached) {
+        return Promise.resolve(JSON.parse(cached));
+    }
+    
+    return new Promise((resolve, reject) => {
+        google.script.run
+            .withSuccessHandler(data => {
+                sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                resolve(data);
+            })
+            .withFailureHandler(reject)
+            [`get${type}EvaluationDataOptimized`](evalMonth, 1000); // 최근 1000개만
+    });
+}
+
+// utils.js에 추가
+let activityHistory = [];
+
+function addActivity(action, details) {
+    const activity = {
+        action: action,
+        details: details,
+        timestamp: new Date().toLocaleString('ko-KR'),
+        id: Date.now()
+    };
+    
+    activityHistory.unshift(activity);
+    if (activityHistory.length > 50) {
+        activityHistory.pop();
+    }
+    
+    // 로컬 스토리지에 저장
+    localStorage.setItem('activityHistory', JSON.stringify(activityHistory));
+    
+    // 사이드바 업데이트
+    updateActivitySidebar();
+}
+
+function updateActivitySidebar() {
+    const container = document.getElementById('recentActivities');
+    let html = '';
+    
+    activityHistory.slice(0, 10).forEach(activity => {
+        html += `
+            <div class="activity-item">
+                <div><strong>${activity.action}</strong></div>
+                <div>${activity.details}</div>
+                <div class="activity-time">${activity.timestamp}</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html || '<p style="text-align: center; color: #666;">작업 내역이 없습니다</p>';
+}
+
+function toggleAllTeams(button) {
+    const checkboxes = button.parentElement.parentElement.querySelectorAll('.team-checkbox-area input[type="checkbox"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = !allChecked;
+    });
+    
+    // 버튼 텍스트 변경
+    button.textContent = allChecked ? '✅ 전체 선택' : '❌ 전체 해제';
+}
+
+function toggleActivitySidebar() {
+    const sidebar = document.getElementById('activitySidebar');
+    sidebar.classList.toggle('show');
+    
+    // 처음 열 때 내역 로드
+    if (sidebar.classList.contains('show')) {
+        // 로컬 스토리지에서 내역 불러오기
+        const saved = localStorage.getItem('activityHistory');
+        if (saved) {
+            activityHistory = JSON.parse(saved);
+        }
+        updateActivitySidebar();
+    }
+}
+
+// 평가 저장 시 자동으로 활동 기록
+function recordActivity(action, details) {
+    addActivity(action, details);
+    
+    // 사이드바가 열려있으면 자동 업데이트
+    const sidebar = document.getElementById('activitySidebar');
+    if (sidebar.classList.contains('show')) {
+        updateActivitySidebar();
+    }
+}
+
+function filterByTeam(data, teamId) {
+    const filteredData = {
+        evaluations: {},
+        finalEval: {}
+    };
+    
+    // 선택된 팀의 채널만 필터링
+    for (const channelId in data.evaluations) {
+        const channel = evaluationData.channels.find(c => c.id === channelId);
+        if (channel && channel.teamId === teamId) {
+            filteredData.evaluations[channelId] = data.evaluations[channelId];
+        }
+    }
+    
+    for (const channelId in data.finalEval) {
+        const channel = evaluationData.channels.find(c => c.id === channelId);
+        if (channel && channel.teamId === teamId) {
+            filteredData.finalEval[channelId] = data.finalEval[channelId];
+        }
+    }
+    
+    return filteredData;
+}
+
+// 페이지 로드 시 자동으로 사이드바 표시
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        const sidebar = document.getElementById('activitySidebar');
+        if (sidebar) {
+            sidebar.classList.add('show');
+            // 로컬 스토리지에서 기록 불러오기
+            const saved = localStorage.getItem('activityHistory');
+            if (saved) {
+                activityHistory = JSON.parse(saved);
+                updateActivitySidebar();
+            }
+        }
+    }, 1000);
+});
+
+// 평가 저장 함수들에 활동 기록 추가
+// evaluation.js의 각 submit 함수에 추가
+function submitFirstEvaluation() {
+    // ... 기존 코드 ...
+    // 성공 시
+    recordActivity('1차 평가 저장', `${evalMonth} - ${channelNames.join(', ')}`);
+}
+
+function submitSecondEvaluationSelective() {
+    // ... 기존 코드 ...
+    // 성공 시
+    recordActivity('2차 평가 저장', `${evalMonth} - ${channelCount}개 채널`);
+}
+
+function submitFinalEvaluationSelective() {
+    // ... 기존 코드 ...
+    // 성공 시
+    recordActivity('최종 평가 확정', `${evalMonth} - ${Object.keys(channelData.channels).length}개 채널`);
+}
+
+function loadMoreActivities() {
+    // 더 많은 활동 기록 표시
+    updateActivitySidebar();
+}
+
 </script>
