@@ -104,8 +104,20 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// ===== 스프레드시트 설정 =====
-const SPREADSHEET_ID = '1VABgBdmOYMx6gpT0zVpy3B9IIzMKjBj57cUQ5E2SKAo'; // 여기에 구글 시트 ID를 넣으세요
+// ===== 스프레드시트 설정 (보안 개선) =====
+function getSpreadsheetId() {
+  let spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  
+  // 환경변수가 없으면 기본값 사용 (하위 호환성)
+  if (!spreadsheetId) {
+    spreadsheetId = '1VABgBdmOYMx6gpT0zVpy3B9IIzMKjBj57cUQ5E2SKAo';
+    console.warn('환경변수 SPREADSHEET_ID가 설정되지 않았습니다. 기본값을 사용합니다.');
+  }
+  
+  return spreadsheetId;
+}
+
+const SPREADSHEET_ID = getSpreadsheetId();
 const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
 // 시트 이름 상수
@@ -123,7 +135,7 @@ const SHEET_NAMES = {
   ACTION_LOG: '액션로그'
 };
 
-// ===== 시트 초기화 함수 =====
+// ===== 시트 초기화 함수 (촬영팀 추가) =====
 function initializeSheets() {
   // 팀정보 시트
   let teamSheet = ss.getSheetByName(SHEET_NAMES.TEAMS);
@@ -135,7 +147,8 @@ function initializeSheets() {
       ['team2', '스튜디오 2팀'],
       ['team3', '스튜디오 3팀'],
       ['team4', '스튜디오 4팀'],
-      ['team5', '스튜디오 5팀']
+      ['team5', '스튜디오 5팀'],
+      ['team6', '촬영팀']  // 촬영팀 추가
     ];
     teamSheet.getRange(2, 1, teams.length, 2).setValues(teams);
   }
@@ -194,7 +207,8 @@ function initializeSheets() {
       ['TL002', '이팀장', 'team2', 'teamlead2@awesomeent.kr', 'Y'],
       ['TL003', '박팀장', 'team3', 'teamlead3@awesomeent.kr', 'Y'],
       ['TL004', '최팀장', 'team4', 'teamlead4@awesomeent.kr', 'Y'],
-      ['TL005', '정팀장', 'team5', 'teamlead5@awesomeent.kr', 'Y']
+      ['TL005', '정팀장', 'team5', 'teamlead5@awesomeent.kr', 'Y'],
+      ['TL006', '강팀장', 'team6', 'teamlead6@awesomeent.kr', 'Y']  // 촬영팀 팀장 추가
     ];
     teamleadSheet.getRange(2, 1, teamleads.length, 5).setValues(teamleads);
   }
@@ -220,10 +234,12 @@ function initializeSheets() {
     secondEvalSheet.getRange(1, 1, 1, 13).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '투입MM', '1차기여도', '2차기여도', '핵심성과', '1차코멘트', '2차코멘트', '채널코멘트']]);
   }
   
+  // 최종평가 시트 - 3차 코멘트 컬럼 추가
   let finalEvalSheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
   if (!finalEvalSheet) {
     finalEvalSheet = ss.insertSheet(SHEET_NAMES.FINAL_EVAL);
-    finalEvalSheet.getRange(1, 1, 1, 13).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '2차기여도', '1차성과금총액', '팀장성과율', '2차성과금(배분대상)', '기여도성과금', '실지급성과금', '최종확정일시']]);
+    // 컬럼 추가: '3차코멘트'
+    finalEvalSheet.getRange(1, 1, 1, 14).setValues([['평가월', '채널ID', '채널명', '팀원ID', '팀원명', '팀명', '2차기여도', '1차성과금총액', '팀장성과율', '2차성과금(배분대상)', '기여도성과금', '실지급성과금', '3차코멘트', '최종확정일시']]);
   }
   
   // 사용자권한 시트
@@ -343,6 +359,80 @@ function getTeamLeadsData() {
   }
 }
 
+// ===== 2차 평가 저장 함수 수정 (문제 해결) =====
+function saveSecondEvaluation(evaluationData) {
+  try {
+    console.log('2차 평가 저장 시작:', evaluationData);
+    
+    checkPermission(2); // 2차 평가 권한 필요
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
+    const evalMonth = String(evaluationData.evalMonth || new Date().toISOString().slice(0, 7));
+    
+    console.log('평가월:', evalMonth);
+    console.log('시트 존재 여부:', sheet !== null);
+    
+    // 선택된 채널만 삭제 (전체 삭제 X)
+    const existingData = sheet.getDataRange().getValues();
+    const channelIdsToUpdate = Object.keys(evaluationData.channels);
+    
+    console.log('업데이트할 채널 수:', channelIdsToUpdate.length);
+    
+    for (let i = existingData.length - 1; i > 0; i--) {
+      if (String(existingData[i][0]) === evalMonth && 
+          channelIdsToUpdate.includes(existingData[i][1])) {
+        sheet.deleteRow(i + 1);
+      }
+    }
+    
+    // 새 데이터 추가
+    const newRows = [];
+    for (const channelId in evaluationData.channels) {
+      const channel = evaluationData.channels[channelId];
+      console.log('채널 처리 중:', channelId, channel.channelName);
+      
+      channel.members.forEach(member => {
+        // 수정된 부분: 2차 기여도 값 처리
+        let contribution2Value = member.contribution2;
+        if (contribution2Value === undefined || contribution2Value === null) {
+          contribution2Value = member.contribution1 || 0;
+        }
+        
+        newRows.push([
+          evalMonth,
+          channel.channelId || channelId,
+          channel.channelName,
+          member.id,
+          member.name,
+          member.teamName,
+          member.mm || 0,
+          member.contribution1 || 0,
+          contribution2Value,  // 수정된 부분 (기존: member.contribution2 || member.contribution1 || 0)
+          member.achievement || '',
+          member.comment1 || '',
+          member.comment2 || '',
+          channel.channelComment || ''
+        ]);
+      });
+    }
+    
+    console.log('저장할 행 수:', newRows.length);
+    
+    if (newRows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
+      console.log('데이터 저장 완료');
+    }
+    
+    logAction('2차 평가 저장', `${evalMonth} - ${channelIdsToUpdate.length}개 채널`);
+    
+    return { success: true, message: '선택한 채널의 2차 평가가 저장되었습니다.' };
+  } catch (error) {
+    console.error('2차 평가 저장 오류:', error);
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ===== 기타 함수들은 그대로 유지 =====
 function getChannelMembersData(channelId) {
   try {
     const mapSheet = ss.getSheetByName(SHEET_NAMES.MEMBER_CHANNEL_MAP);
@@ -892,7 +982,7 @@ function getFirstEvaluationData(evalMonth = null) {
   }
 }
 
-// ===== 2차 평가 데이터 조회 수정 =====
+// ===== 2차 평가 데이터 조회 수정 (MM 순 정렬 추가) =====
 function getSecondEvaluationData(evalMonth = null) {
   try {
     const userInfo = checkPermission(2); // 2차 평가 권한 필요
@@ -937,6 +1027,11 @@ function getSecondEvaluationData(evalMonth = null) {
           comment2: comment2
         });
       }
+    }
+    
+    // MM 순으로 정렬
+    for (const channelId in evaluations) {
+      evaluations[channelId].members.sort((a, b) => (b.mm || 0) - (a.mm || 0));
     }
     
     console.log('2차 평가 결과:', evaluations);
@@ -1055,57 +1150,7 @@ function getFirstEvaluationByTeamlead(evalMonth, teamleadId) {
   }
 }
 
-function saveSecondEvaluation(evaluationData) {
-  try {
-    checkPermission(2); // 2차 평가 권한 필요
-    
-    const sheet = ss.getSheetByName(SHEET_NAMES.SECOND_EVAL);
-    const evalMonth = String(evaluationData.evalMonth || new Date().toISOString().slice(0, 7));
-    
-    // 기존 데이터 삭제
-    const existingData = sheet.getDataRange().getValues();
-    for (let i = existingData.length - 1; i > 0; i--) {
-      if (String(existingData[i][0]) === evalMonth) {
-        sheet.deleteRow(i + 1);
-      }
-    }
-    
-    // 새 데이터 추가
-    const newRows = [];
-    for (const channelId in evaluationData.channels) {
-      const channel = evaluationData.channels[channelId];
-      channel.members.forEach(member => {
-        newRows.push([
-          evalMonth,
-          channel.channelId,
-          channel.channelName,
-          member.id,
-          member.name,
-          member.teamName,
-          member.mm,
-          member.contribution1,
-          member.contribution2,
-          member.achievement,
-          member.comment1,
-          member.comment2,
-          channel.channelComment || '' // 채널 코멘트 추가
-        ]);
-      });
-    }
-    
-    if (newRows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
-    }
-    
-    logAction('2차 평가 저장', `${evalMonth}`);
-    
-    return { success: true, message: '2차 평가가 저장되었습니다.' };
-  } catch (error) {
-    console.error('2차 평가 저장 오류:', error);
-    return { success: false, message: error.toString() };
-  }
-}
-
+// ===== saveFinalEvaluation 함수 수정 (선택적 저장) =====
 function saveFinalEvaluation(channelData) {
   try {
     checkPermission(3); // 최종 평가 권한 필요
@@ -1114,10 +1159,14 @@ function saveFinalEvaluation(channelData) {
     const evalMonth = String(channelData.evalMonth || new Date().toISOString().slice(0, 7));
     const timestamp = new Date().toLocaleString('ko-KR');
     
-    // 기존 데이터 삭제
+    // 기존 데이터를 채널별로 선택적으로 삭제 (전체 삭제 X)
     const existingData = sheet.getDataRange().getValues();
+    const channelIdsToUpdate = Object.keys(channelData.channels);
+    
+    // 뒤에서부터 삭제 (인덱스 문제 방지)
     for (let i = existingData.length - 1; i > 0; i--) {
-      if (String(existingData[i][0]) === evalMonth) {
+      if (String(existingData[i][0]) === evalMonth && 
+          channelIdsToUpdate.includes(existingData[i][1])) {
         sheet.deleteRow(i + 1);
       }
     }
@@ -1126,7 +1175,6 @@ function saveFinalEvaluation(channelData) {
     const newRows = [];
     for (const channelId in channelData.channels) {
       const channel = channelData.channels[channelId];
-      // totalAmount는 이미 원 단위로 변환되어 들어옴
       const distributionAmount = channel.totalAmount * (100 - channel.leaderPercentage) / 100;
       
       channel.members.forEach(member => {
@@ -1139,23 +1187,24 @@ function saveFinalEvaluation(channelData) {
           member.name,
           member.teamName,
           member.contribution2,
-          channel.totalAmount,      // 원 단위
+          channel.totalAmount,
           channel.leaderPercentage,
-          distributionAmount,       // 원 단위
-          Math.round(calcAmount),   // 원 단위
-          member.finalAmount,       // 원 단위
+          distributionAmount,
+          Math.round(calcAmount),
+          member.finalAmount,
+          member.finalComment || '',  // 3차 코멘트 추가
           timestamp
         ]);
       });
     }
     
     if (newRows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 13).setValues(newRows);
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 14).setValues(newRows);
     }
     
-    logAction('최종 평가 확정', `${evalMonth} - ${newRows.length}건`);
+    logAction('최종 평가 확정', `${evalMonth} - ${channelIdsToUpdate.length}개 채널`);
     
-    return { success: true, message: '최종 평가가 확정되었습니다.' };
+    return { success: true, message: '선택한 채널의 최종 평가가 확정되었습니다.' };
   } catch (error) {
     console.error('최종 평가 저장 오류:', error);
     return { success: false, message: error.toString() };
@@ -1163,17 +1212,27 @@ function saveFinalEvaluation(channelData) {
 }
 
 // ===== 액션 로그 조회 =====
-function getActionLogs(limit = 50) {
+function getActionLogs(limit = 50, userOnly = false) {
   try {
-    checkPermission(3); // 최고 권한 필요
+    const userInfo = getUserInfo();
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    // 관리자는 모든 로그, 일반 사용자는 자신의 로그만
+    if (!userOnly && userInfo.level < 3) {
+      userOnly = true; // 일반 사용자는 자동으로 자신의 로그만
+    }
     
     const sheet = ss.getSheetByName(SHEET_NAMES.ACTION_LOG);
     const data = sheet.getDataRange().getValues();
     const logs = [];
     
     // 최근 로그부터 표시 (역순)
-    const startIndex = Math.max(1, data.length - limit);
-    for (let i = data.length - 1; i >= startIndex; i--) {
+    for (let i = data.length - 1; i >= 1 && logs.length < limit; i--) {
+      // 사용자 필터링
+      if (userOnly && data[i][1] !== userEmail) {
+        continue;
+      }
+      
       logs.push({
         timestamp: data[i][0],
         user: data[i][1],
@@ -1333,30 +1392,58 @@ function logAction(action, details) {
   }
 }
 
-// ===== 권한 관리 UI 함수들 =====
+// ===== 권한 관리 UI 함수들 (디버깅 강화) =====
 function getPermissionsList() {
   try {
-    checkPermission(3); // 최고 권한 필요
+    console.log('getPermissionsList 호출됨');
     
+    // 권한 확인 전에 사용자 정보부터 확인
+    const userEmail = Session.getActiveUser().getEmail();
+    console.log('현재 사용자 이메일:', userEmail);
+    
+    const userInfo = getUserPermission(userEmail);
+    console.log('사용자 정보:', userInfo);
+    
+    if (!userInfo || userInfo.level < 3) {
+      console.error('권한 부족 - 레벨:', userInfo ? userInfo.level : 'null');
+      throw new Error(`권한이 부족합니다. 현재 레벨: ${userInfo ? userInfo.level : 'null'}, 필요 레벨: 3`);
+    }
+    
+    // 시트 존재 확인
     const sheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    if (!sheet) {
+      console.error('사용자권한 시트를 찾을 수 없습니다');
+      throw new Error('사용자권한 시트가 존재하지 않습니다');
+    }
+    
+    console.log('사용자권한 시트 찾음:', sheet.getName());
+    
     const data = sheet.getDataRange().getValues();
+    console.log('시트 데이터 행 수:', data.length);
+    console.log('헤더:', data[0]);
+    
     const permissions = [];
     
     for (let i = 1; i < data.length; i++) {
-      permissions.push({
-        email: data[i][0],
-        name: data[i][1],
-        department: data[i][2],
-        level: data[i][3],
-        active: data[i][4],
-        registeredDate: data[i][5]
-      });
+      if (data[i][0]) { // 이메일이 있는 행만 처리
+        permissions.push({
+          email: data[i][0],
+          name: data[i][1] || '',
+          department: data[i][2] || '',
+          level: data[i][3] || 1,
+          active: data[i][4] || 'Y',
+          registeredDate: data[i][5] || ''
+        });
+      }
     }
     
+    console.log('권한 목록 생성 완료:', permissions.length, '개');
     return permissions;
+    
   } catch (error) {
-    console.error('권한 목록 조회 오류:', error);
-    return [];
+    console.error('getPermissionsList 오류:', error);
+    console.error('오류 스택:', error.stack);
+    throw error; // 프론트엔드에서 에러를 받을 수 있도록 다시 throw
   }
 }
 
@@ -1388,6 +1475,54 @@ function addUserPermission(userData) {
     return { success: true, message: '사용자 권한이 추가되었습니다.' };
   } catch (error) {
     return { success: false, message: error.toString() };
+  }
+}
+
+// ===== 디버깅 함수: 시트 구조 확인 =====
+function debugSheetStructure() {
+  try {
+    console.log('=== 시트 구조 디버깅 ===');
+    
+    // 모든 시트 이름 확인
+    const sheets = ss.getSheets();
+    console.log('전체 시트 목록:');
+    sheets.forEach(sheet => {
+      console.log('- ' + sheet.getName());
+    });
+    
+    // 사용자권한 시트 확인
+    const permissionSheet = ss.getSheetByName(SHEET_NAMES.USER_PERMISSIONS);
+    if (permissionSheet) {
+      console.log('사용자권한 시트 존재함');
+      const data = permissionSheet.getDataRange().getValues();
+      console.log('데이터 행 수:', data.length);
+      console.log('헤더:', data[0]);
+      
+      if (data.length > 1) {
+        console.log('첫 번째 데이터 행:', data[1]);
+      }
+    } else {
+      console.log('사용자권한 시트가 없습니다 - 초기화 실행');
+      initializeSheets();
+    }
+    
+    // 현재 사용자 정보 확인
+    const userEmail = Session.getActiveUser().getEmail();
+    console.log('현재 사용자:', userEmail);
+    
+    const userInfo = getUserPermission(userEmail);
+    console.log('사용자 권한 정보:', userInfo);
+    
+    return {
+      sheets: sheets.map(s => s.getName()),
+      userEmail: userEmail,
+      userInfo: userInfo,
+      hasPermissionSheet: !!permissionSheet
+    };
+    
+  } catch (error) {
+    console.error('시트 구조 디버깅 오류:', error);
+    return { error: error.toString() };
   }
 }
 
@@ -1746,5 +1881,652 @@ function getTrendData(type, target, period) {
   } catch (error) {
     console.error('트렌드 데이터 조회 오류:', error);
     return { labels: [], amounts: [], contributions: [] };
+  }
+}
+
+// ===== code.gs에 추가할 락(Lock) 기능 =====
+function saveFirstEvaluationWithLock(evaluationData) {
+  const lock = LockService.getScriptLock();
+  try {
+    // 10초 동안 락 획득 시도
+    lock.waitLock(10000);
+    
+    // 기존 saveFirstEvaluation 로직
+    return saveFirstEvaluation(evaluationData);
+    
+  } catch (e) {
+    return { 
+      success: false, 
+      message: '다른 사용자가 데이터를 저장 중입니다. 잠시 후 다시 시도해주세요.' 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function saveSecondEvaluationWithLock(evaluationData) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    return saveSecondEvaluation(evaluationData);
+  } catch (e) {
+    return { 
+      success: false, 
+      message: '다른 사용자가 데이터를 저장 중입니다. 잠시 후 다시 시도해주세요.' 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function saveFinalEvaluationWithLock(channelData) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    return saveFinalEvaluation(channelData);
+  } catch (e) {
+    return { 
+      success: false, 
+      message: '다른 사용자가 데이터를 저장 중입니다. 잠시 후 다시 시도해주세요.' 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+// ===== 충돌 감지 함수 =====
+function checkForConflicts(evalMonth, channelId) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.EVAL_INFO);
+    const data = sheet.getDataRange().getValues();
+    const currentUser = Session.getActiveUser().getEmail();
+    const currentTime = new Date();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(evalMonth)) {
+        const lastModified = new Date(data[i][5]);
+        const timeDiff = (currentTime - lastModified) / 1000 / 60;
+        
+        if (timeDiff < 5 && data[i][2] !== currentUser) {
+          return {
+            hasConflict: true,
+            lastUser: data[i][3],
+            lastModified: data[i][5]
+          };
+        }
+      }
+    }
+    
+    return { hasConflict: false };
+  } catch (error) {
+    console.error('충돌 확인 오류:', error);
+    return { hasConflict: false };
+  }
+}
+
+
+// ===== 팀별 월 성과금 조회 함수 =====
+function getTeamMonthlyPayment(evalMonth, teamId) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const data = sheet.getDataRange().getValues();
+    const members = getMembersData().filter(m => m.teamId === teamId);
+    
+    const result = {
+      totalAmount: 0,
+      memberCount: 0,
+      members: {}
+    };
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === evalMonth) {
+        const memberName = data[i][4];
+        const channelName = data[i][2];
+        const amount = data[i][11]; // 실지급성과금
+        
+        // 해당 팀 멤버인지 확인
+        if (members.some(m => m.name === memberName)) {
+          if (!result.members[memberName]) {
+            result.members[memberName] = {
+              channels: [],
+              total: 0
+            };
+          }
+          
+          result.members[memberName].channels.push({
+            channelName: channelName,
+            amount: amount
+          });
+          result.members[memberName].total += amount;
+          result.totalAmount += amount;
+        }
+      }
+    }
+    
+    result.memberCount = Object.keys(result.members).length;
+    return result;
+  } catch (error) {
+    console.error('팀 월별 성과금 조회 오류:', error);
+    return { totalAmount: 0, memberCount: 0, members: {} };
+  }
+}
+
+// ===== 배치 데이터 로드 함수 (API 호출 최소화) =====
+function getBatchEvaluationData(evalMonth) {
+  try {
+    const result = {
+      firstEval: {},
+      secondEval: {},
+      finalEval: {},
+      evaluationInfo: []
+    };
+    
+    // 한 번에 여러 시트 데이터 가져오기
+    const sheets = {
+      first: ss.getSheetByName(SHEET_NAMES.FIRST_EVAL),
+      second: ss.getSheetByName(SHEET_NAMES.SECOND_EVAL),
+      final: ss.getSheetByName(SHEET_NAMES.FINAL_EVAL),
+      info: ss.getSheetByName(SHEET_NAMES.EVAL_INFO)
+    };
+    
+    // 병렬로 데이터 읽기 (한 번의 API 호출로 모든 데이터 가져오기)
+    const allData = {
+      first: sheets.first.getDataRange().getValues(),
+      second: sheets.second.getDataRange().getValues(),
+      final: sheets.final.getDataRange().getValues(),
+      info: sheets.info.getDataRange().getValues()
+    };
+    
+    // 1차 평가 데이터 처리
+    for (let i = 1; i < allData.first.length; i++) {
+      if (String(allData.first[i][0]) === evalMonth) {
+        const channelId = allData.first[i][1];
+        if (!result.firstEval[channelId]) {
+          result.firstEval[channelId] = {
+            channelId: channelId,
+            channelName: allData.first[i][2],
+            channelComment: allData.first[i][11] || '',
+            members: []
+          };
+        }
+        result.firstEval[channelId].members.push({
+          id: allData.first[i][3],
+          name: allData.first[i][4],
+          teamName: allData.first[i][5],
+          mm: allData.first[i][6],
+          contribution1: allData.first[i][7],
+          achievement: allData.first[i][8],
+          comment1: allData.first[i][9]
+        });
+      }
+    }
+    
+    // 2차 평가 데이터 처리
+    for (let i = 1; i < allData.second.length; i++) {
+      if (String(allData.second[i][0]) === evalMonth) {
+        const channelId = allData.second[i][1];
+        if (!result.secondEval[channelId]) {
+          result.secondEval[channelId] = {
+            channelId: channelId,
+            channelName: allData.second[i][2],
+            channelComment: allData.second[i][12] || '',
+            members: []
+          };
+        }
+        result.secondEval[channelId].members.push({
+          id: allData.second[i][3],
+          name: allData.second[i][4],
+          teamName: allData.second[i][5],
+          mm: allData.second[i][6],
+          contribution1: allData.second[i][7],
+          contribution2: allData.second[i][8],
+          achievement: allData.second[i][9],
+          comment1: allData.second[i][10],
+          comment2: allData.second[i][11]
+        });
+      }
+    }
+    
+    // 최종 평가 데이터 처리
+    for (let i = 1; i < allData.final.length; i++) {
+      if (String(allData.final[i][0]) === evalMonth) {
+        const channelId = allData.final[i][1];
+        if (!result.finalEval[channelId]) {
+          result.finalEval[channelId] = {
+            channelId: channelId,
+            channelName: allData.final[i][2],
+            totalAmount: allData.final[i][7],    // 1차성과금총액
+            leaderPercentage: allData.final[i][8], // 팀장성과율
+            members: []
+          };
+        }
+        result.finalEval[channelId].members.push({
+          id: allData.final[i][3],
+          name: allData.final[i][4],
+          teamName: allData.final[i][5],
+          contribution2: allData.final[i][6],
+          totalAmount: allData.final[i][7],
+          leaderPercentage: allData.final[i][8],
+          distributionAmount: allData.final[i][9],
+          calcAmount: allData.final[i][10],
+          finalAmount: allData.final[i][11],
+          finalComment: allData.final[i][12],
+          timestamp: allData.final[i][13]
+        });
+      }
+    }
+    
+    // 평가 정보 데이터 처리
+    for (let i = 1; i < allData.info.length; i++) {
+      if (String(allData.info[i][1]) === evalMonth) {
+        result.evaluationInfo.push({
+          evalId: allData.info[i][0],
+          evalMonth: allData.info[i][1],
+          teamleadId: allData.info[i][2],
+          teamleadName: allData.info[i][3],
+          evalStage: allData.info[i][4],
+          lastModified: allData.info[i][5]
+        });
+      }
+    }
+    
+    // 각 채널의 멤버를 MM 순으로 정렬
+    for (const channelId in result.firstEval) {
+      result.firstEval[channelId].members.sort((a, b) => (b.mm || 0) - (a.mm || 0));
+    }
+    for (const channelId in result.secondEval) {
+      result.secondEval[channelId].members.sort((a, b) => (b.mm || 0) - (a.mm || 0));
+    }
+    
+    console.log('배치 데이터 로드 완료:', evalMonth);
+    return result;
+  } catch (error) {
+    console.error('배치 데이터 로드 오류:', error);
+    throw error;
+  }
+}
+
+// ===== 최적화된 평가 데이터 조회 =====
+function getFirstEvaluationDataOptimized(evalMonth, limit = null) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.FIRST_EVAL);
+    const lastRow = sheet.getLastRow();
+    
+    // 데이터가 많으면 최근 데이터부터 읽기
+    const startRow = limit && lastRow > limit ? lastRow - limit + 1 : 2;
+    const numRows = lastRow - startRow + 1;
+    
+    if (numRows <= 0) return {};
+    
+    // 필요한 범위만 읽기
+    const data = sheet.getRange(startRow, 1, numRows, 12).getValues();
+    const evaluations = {};
+    
+    // 뒤에서부터 읽어서 해당 월 데이터만 수집
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (String(data[i][0]) === evalMonth) {
+        const channelId = data[i][1];
+        if (!evaluations[channelId]) {
+          evaluations[channelId] = {
+            channelId: channelId,
+            channelName: data[i][2],
+            channelComment: data[i][11] || '',
+            members: []
+          };
+        }
+        evaluations[channelId].members.push({
+          id: data[i][3],
+          name: data[i][4],
+          teamName: data[i][5],
+          mm: data[i][6],
+          contribution1: data[i][7],
+          achievement: data[i][8],
+          comment1: data[i][9]
+        });
+      }
+    }
+    
+    // MM 순 정렬
+    for (const channelId in evaluations) {
+      evaluations[channelId].members.sort((a, b) => (b.mm || 0) - (a.mm || 0));
+    }
+    
+    return evaluations;
+  } catch (error) {
+    console.error('최적화된 1차 평가 데이터 가져오기 오류:', error);
+    return {};
+  }
+}
+
+// ===== 필요한 데이터만 로드하는 초기화 함수 =====
+function getInitialDataOptimized() {
+  try {
+    const userEmail = Session.getActiveUser().getEmail();
+    if (!userEmail || !userEmail.endsWith('@awesomeent.kr')) {
+      throw new Error('유효하지 않은 사용자입니다.');
+    }
+    
+    const userInfo = getUserPermission(userEmail);
+    if (!userInfo) {
+      throw new Error('사용자 권한 정보를 찾을 수 없습니다.');
+    }
+    
+    // 병렬로 데이터 로드
+    const teams = getTeamsData();
+    const teamleads = getTeamLeadsData();
+    
+    // 사용자 레벨에 따라 필요한 데이터만 로드
+    let members, channels;
+    
+    if (userInfo.level === 1 && userInfo.teamId) {
+      // 레벨 1은 자기 팀 데이터만
+      members = getMembersData().filter(m => m.teamId === userInfo.teamId);
+      channels = getChannelsData().filter(c => c.teamId === userInfo.teamId);
+    } else {
+      // 활성화된 데이터만 로드
+      const memberSheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
+      const channelSheet = ss.getSheetByName(SHEET_NAMES.CHANNELS);
+      
+      // 활성 멤버만
+      const memberData = memberSheet.getDataRange().getValues();
+      members = [];
+      for (let i = 1; i < memberData.length && i < 500; i++) { // 최대 500명
+        if (memberData[i][3] === 'Y') {
+          members.push({
+            id: memberData[i][0],
+            name: memberData[i][1],
+            teamId: memberData[i][2]
+          });
+        }
+      }
+      
+      // 활성 채널만
+      const channelData = channelSheet.getDataRange().getValues();
+      channels = [];
+      for (let i = 1; i < channelData.length && i < 200; i++) { // 최대 200개
+        if (channelData[i][3] === 'Y') {
+          channels.push({
+            id: channelData[i][0],
+            name: channelData[i][1],
+            teamId: channelData[i][2]
+          });
+        }
+      }
+    }
+    
+    return {
+      teams: teams,
+      members: members,
+      channels: channels,
+      teamleads: teamleads,
+      currentUser: userInfo
+    };
+  } catch (error) {
+    console.error('최적화된 초기 데이터 로드 오류:', error);
+    throw error;
+  }
+}
+
+// ===== 시트 인덱스 생성 (한 번만 실행) =====
+function createSheetIndex() {
+  // 평가월 기준으로 정렬
+  const sheets = [
+    SHEET_NAMES.FIRST_EVAL,
+    SHEET_NAMES.SECOND_EVAL,
+    SHEET_NAMES.FINAL_EVAL
+  ];
+  
+  sheets.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    const range = sheet.getDataRange();
+    range.sort(1); // 첫 번째 열(평가월) 기준 정렬
+  });
+  
+  console.log('시트 인덱스 생성 완료');
+}
+
+
+// code.gs에 추가 - 오래된 데이터 아카이브
+function archiveOldData(monthsToKeep = 6) {
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - monthsToKeep);
+  const cutoffString = cutoffDate.toISOString().slice(0, 7);
+  
+  const archiveSheet = ss.getSheetByName('아카이브') || ss.insertSheet('아카이브');
+  const sheets = [SHEET_NAMES.FIRST_EVAL, SHEET_NAMES.SECOND_EVAL, SHEET_NAMES.FINAL_EVAL];
+  
+  sheets.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    const data = sheet.getDataRange().getValues();
+    const toArchive = [];
+    const toKeep = [data[0]]; // 헤더
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] < cutoffString) {
+        toArchive.push(data[i]);
+      } else {
+        toKeep.push(data[i]);
+      }
+    }
+    
+    // 아카이브에 저장
+    if (toArchive.length > 0) {
+      const lastRow = archiveSheet.getLastRow();
+      archiveSheet.getRange(lastRow + 1, 1, toArchive.length, toArchive[0].length).setValues(toArchive);
+      
+      // 원본 시트 업데이트
+      sheet.clear();
+      sheet.getRange(1, 1, toKeep.length, toKeep[0].length).setValues(toKeep);
+    }
+  });
+  
+  return `${monthsToKeep}개월 이전 데이터를 아카이브했습니다.`;
+}
+
+
+function getTeamLeaderPayments(evalMonth) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const teamleadSheet = ss.getSheetByName(SHEET_NAMES.TEAMLEADS);
+    const data = sheet.getDataRange().getValues();
+    const teamleadData = teamleadSheet.getDataRange().getValues();
+    
+    const teamLeaderPayments = {};
+    
+    // 팀장 정보 수집
+    const teamleads = {};
+    for (let i = 1; i < teamleadData.length; i++) {
+      if (teamleadData[i][4] === 'Y') {
+        teamleads[teamleadData[i][2]] = { // teamId를 키로
+          id: teamleadData[i][0],
+          name: teamleadData[i][1],
+          email: teamleadData[i][3]
+        };
+      }
+    }
+    
+    // 최종평가에서 팀장 성과금 계산
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === evalMonth) {
+        const channelId = data[i][1];
+        const totalAmount = data[i][7];
+        const leaderPercentage = data[i][8];
+        const leaderAmount = totalAmount * leaderPercentage / 100;
+        
+        // 채널의 팀 찾기
+        const channel = getChannelsData().find(c => c.id === channelId);
+        if (channel && teamleads[channel.teamId]) {
+          const teamleader = teamleads[channel.teamId];
+          
+          if (!teamLeaderPayments[teamleader.id]) {
+            teamLeaderPayments[teamleader.id] = {
+              name: teamleader.name,
+              teamId: channel.teamId,
+              channels: [],
+              total: 0
+            };
+          }
+          
+          teamLeaderPayments[teamleader.id].channels.push({
+            channelName: data[i][2],
+            amount: leaderAmount
+          });
+          teamLeaderPayments[teamleader.id].total += leaderAmount;
+        }
+      }
+    }
+    
+    return teamLeaderPayments;
+  } catch (error) {
+    console.error('팀장 성과금 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 채널 금액 정보만 임시 저장 =====
+function saveChannelAmountTemp(data) {
+  try {
+    checkPermission(3); // 권한 체크
+    
+    const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const channelSheet = ss.getSheetByName(SHEET_NAMES.CHANNELS);
+    const channelData = channelSheet.getDataRange().getValues();
+    
+    // 채널 정보 찾기
+    let channelName = '';
+    for (let i = 1; i < channelData.length; i++) {
+      if (channelData[i][0] === data.channelId) {
+        channelName = channelData[i][1];
+        break;
+      }
+    }
+    
+    // 임시 저장용 메타데이터 시트 확인/생성
+    let metaSheet = ss.getSheetByName('최종평가_임시저장');
+    if (!metaSheet) {
+      metaSheet = ss.insertSheet('최종평가_임시저장');
+      metaSheet.getRange(1, 1, 1, 5).setValues([['평가월', '채널ID', '채널명', '1차성과금총액', '팀장성과율']]);
+    }
+    
+    const metaData = metaSheet.getDataRange().getValues();
+    let rowToUpdate = -1;
+    
+    // 기존 데이터 확인
+    for (let i = 1; i < metaData.length; i++) {
+      if (String(metaData[i][0]) === data.evalMonth && metaData[i][1] === data.channelId) {
+        rowToUpdate = i + 1;
+        break;
+      }
+    }
+    
+    if (rowToUpdate > 0) {
+      // 업데이트
+      metaSheet.getRange(rowToUpdate, 4, 1, 2).setValues([[data.totalAmount, data.leaderPercentage]]);
+    } else {
+      // 새로 추가
+      metaSheet.appendRow([data.evalMonth, data.channelId, channelName, data.totalAmount, data.leaderPercentage]);
+    }
+    
+    logAction('채널 금액 임시 저장', `${data.evalMonth} - ${channelName}`);
+    
+    return { success: true, message: '금액 정보가 임시 저장되었습니다.' };
+  } catch (error) {
+    console.error('채널 금액 저장 오류:', error);
+    return { success: false, message: error.toString() };
+  }
+}
+
+// 임시 저장된 금액 정보 가져오기
+function getTempChannelAmounts(evalMonth) {
+  try {
+    const metaSheet = ss.getSheetByName('최종평가_임시저장');
+    if (!metaSheet) return {};
+    
+    const data = metaSheet.getDataRange().getValues();
+    const result = {};
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === evalMonth) {
+        result[data[i][1]] = {
+          totalAmount: data[i][3],
+          leaderPercentage: data[i][4]
+        };
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('임시 저장 데이터 조회 오류:', error);
+    return {};
+  }
+}
+
+// ===== 팀장 성과금 조회 함수 =====
+function getTeamLeaderPayments(evalMonth) {
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAMES.FINAL_EVAL);
+    const teamleadSheet = ss.getSheetByName(SHEET_NAMES.TEAMLEADS);
+    const data = sheet.getDataRange().getValues();
+    const teamleadData = teamleadSheet.getDataRange().getValues();
+    
+    const teamLeaderPayments = {};
+    
+    // 팀장 정보 수집
+    const teamleads = {};
+    for (let i = 1; i < teamleadData.length; i++) {
+      if (teamleadData[i][4] === 'Y') {
+        teamleads[teamleadData[i][2]] = { // teamId를 키로
+          id: teamleadData[i][0],
+          name: teamleadData[i][1],
+          email: teamleadData[i][3]
+        };
+      }
+    }
+    
+    // 최종평가에서 팀장 성과금 계산
+    const channelTotals = {};
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === evalMonth) {
+        const channelId = data[i][1];
+        if (!channelTotals[channelId]) {
+          channelTotals[channelId] = {
+            channelName: data[i][2],
+            totalAmount: data[i][7],
+            leaderPercentage: data[i][8]
+          };
+        }
+      }
+    }
+    
+    // 채널별로 팀장 성과금 계산
+    for (const channelId in channelTotals) {
+      const channel = getChannelsData().find(c => c.id === channelId);
+      if (channel && teamleads[channel.teamId]) {
+        const teamleader = teamleads[channel.teamId];
+        const leaderAmount = channelTotals[channelId].totalAmount * 
+                           channelTotals[channelId].leaderPercentage / 100;
+        
+        if (!teamLeaderPayments[teamleader.id]) {
+          teamLeaderPayments[teamleader.id] = {
+            name: teamleader.name,
+            teamId: channel.teamId,
+            channels: [],
+            total: 0
+          };
+        }
+        
+        teamLeaderPayments[teamleader.id].channels.push({
+          channelName: channelTotals[channelId].channelName,
+          amount: leaderAmount
+        });
+        teamLeaderPayments[teamleader.id].total += leaderAmount;
+      }
+    }
+    
+    return teamLeaderPayments;
+  } catch (error) {
+    console.error('팀장 성과금 조회 오류:', error);
+    return {};
   }
 }
